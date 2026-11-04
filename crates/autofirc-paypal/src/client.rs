@@ -56,10 +56,10 @@ impl PayPalClient {
 
     async fn access_token(&self) -> anyhow::Result<String> {
         let mut guard = self.token.lock().await;
-        if let Some(t) = &*guard {
-            if t.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
-                return Ok(t.access_token.clone());
-            }
+        if let Some(t) = &*guard
+            && t.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60)
+        {
+            return Ok(t.access_token.clone());
         }
         let resp: TokenResponse = self
             .http

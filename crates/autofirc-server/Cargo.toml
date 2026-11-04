@@ -1,0 +1,32 @@
+[package]
+name = "autofirc-server"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+autofirc-core = { path = "../autofirc-core" }
+autofirc-paypal = { path = "../autofirc-paypal" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dotenvy.workspace = true
+axum = "0.8"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "chrono", "json", "macros", "migrate"] }
+apalis = "0.7"
+apalis-redis = "0.7"
+rsa = "0.9"
+base64 = "0.22"
+sha2 = { version = "0.10", features = ["oid"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+redis = { version = "0.32", features = ["tokio-rustls-comp", "tls-rustls-webpki-roots"] }
+
+[dev-dependencies]
+wiremock = "0.6"
+tower = "0.5"
+rand = "0.8"

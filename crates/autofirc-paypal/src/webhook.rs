@@ -68,8 +68,8 @@ pub fn verify_signature(
     let sig_bytes = B64
         .decode(&meta.transmission_sig)
         .map_err(|_| WebhookError::BadSignatureEncoding)?;
-    let signature =
-        Signature::try_from(sig_bytes.as_slice()).map_err(|_| WebhookError::BadSignatureEncoding)?;
+    let signature = Signature::try_from(sig_bytes.as_slice())
+        .map_err(|_| WebhookError::BadSignatureEncoding)?;
     let message = signed_message(meta, webhook_id, raw_body);
     VerifyingKey::<Sha256>::new(public_key.clone())
         .verify(message.as_bytes(), &signature)
@@ -107,7 +107,8 @@ pub fn public_key_from_pem(pem: &str) -> Result<RsaPublicKey, WebhookError> {
     let (_, cert) = x509_parser::parse_x509_certificate(&pem_block.contents)
         .map_err(|e| WebhookError::Cert(format!("x509 parse: {e}")))?;
     let spki = cert.public_key();
-    RsaPublicKey::from_public_key_der(spki.raw).map_err(|e| WebhookError::Cert(format!("spki der: {e}")))
+    RsaPublicKey::from_public_key_der(spki.raw)
+        .map_err(|e| WebhookError::Cert(format!("spki der: {e}")))
 }
 
 #[cfg(test)]
@@ -126,9 +127,13 @@ mod tests {
     #[test]
     fn cert_url_allowlist() {
         assert!(is_trusted_cert_url("https://api.paypal.com/cert.pem"));
-        assert!(is_trusted_cert_url("https://api.sandbox.paypal.com/cert.pem"));
+        assert!(is_trusted_cert_url(
+            "https://api.sandbox.paypal.com/cert.pem"
+        ));
         assert!(!is_trusted_cert_url("http://api.paypal.com/cert.pem")); // no http
-        assert!(!is_trusted_cert_url("https://paypal.com.evil.example/cert.pem"));
+        assert!(!is_trusted_cert_url(
+            "https://paypal.com.evil.example/cert.pem"
+        ));
         assert!(!is_trusted_cert_url("https://evil-paypal.com/cert.pem"));
         assert!(!is_trusted_cert_url("not a url"));
     }
