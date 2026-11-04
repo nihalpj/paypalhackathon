@@ -8,6 +8,9 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Both `ring` and `aws-lc-rs` are in the graph (rig pulls the latter);
+    // pick ring explicitly so rustls never panics on provider ambiguity.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
 
@@ -47,15 +50,28 @@ async fn main() -> anyhow::Result<()> {
         pinned_webhook_key: None,
     };
 
-    let worker_pool = pool.clone();
+    let classifier = match autofirc_ai::provider::classifier_from_env() {
+        Ok(c) => Some(c),
+        Err(e) => {
+            tracing::warn!(error = %e, "no LLM provider configured; rows will go to manual review");
+            None
+        }
+    };
+    let store = autofirc_server::storage::PdfStore::from_env().ok();
+    let pipeline = worker::Pipeline {
+        paypal,
+        pool: pool.clone(),
+        classifier,
+        store,
+        merchant: worker::MerchantProfile::from_env(),
+    };
+
     tokio::spawn(async move {
-        let paypal = paypal;
         Monitor::new()
             .register(WorkerBuilder::new("enrich").backend(storage).build_fn(
                 move |job: EnrichJob| {
-                    let paypal = paypal.clone();
-                    let pool = worker_pool.clone();
-                    async move { worker::enrich(job, &paypal, &pool).await }
+                    let pipeline = pipeline.clone();
+                    async move { worker::process(job, &pipeline).await }
                 },
             ))
             .run()

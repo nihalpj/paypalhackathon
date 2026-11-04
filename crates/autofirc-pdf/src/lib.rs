@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 
 /// The statutory LUT endorsement required on zero-rated export invoices
 /// (Section 16 IGST Act read with Rule 96A CGST Rules).
-pub const LUT_ENDORSEMENT: &str = "Supply meant for export under bond or letter of undertaking without payment of integrated tax";
+pub const LUT_ENDORSEMENT: &str =
+    "Supply meant for export under bond or letter of undertaking without payment of integrated tax";
 
 /// Every field of GST Rule 46 relevant to a service export invoice.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,11 +55,9 @@ pub fn format_invoice_number(financial_year: &str, serial: u32) -> String {
 }
 
 fn fonts() -> anyhow::Result<genpdf::fonts::FontFamily<genpdf::fonts::FontData>> {
-    let regular = genpdf::fonts::FontData::new(
-        include_bytes!("../fonts/DejaVuSans.ttf").to_vec(),
-        None,
-    )
-    .context("load DejaVuSans")?;
+    let regular =
+        genpdf::fonts::FontData::new(include_bytes!("../fonts/DejaVuSans.ttf").to_vec(), None)
+            .context("load DejaVuSans")?;
     let bold = genpdf::fonts::FontData::new(
         include_bytes!("../fonts/DejaVuSans-Bold.ttf").to_vec(),
         None,
@@ -100,30 +99,52 @@ pub fn render_invoice(data: &InvoiceData) -> anyhow::Result<Vec<u8>> {
         "TAX INVOICE — EXPORT OF SERVICES (ZERO-RATED UNDER LUT)",
         h1,
     )));
-    doc.push(elements::Paragraph::new(StyledString::new(LUT_ENDORSEMENT, h2)));
+    doc.push(elements::Paragraph::new(StyledString::new(
+        LUT_ENDORSEMENT,
+        h2,
+    )));
     doc.push(elements::Break::new(1.0));
 
     let mut table = elements::TableLayout::new(vec![3, 5]);
     table.set_cell_decorator(elements::FrameCellDecorator::new(true, true, false));
     let rows: Vec<(String, String)> = vec![
-        ("Supplier".into(), format!("{}\n{}", data.supplier_name, data.supplier_address)),
+        (
+            "Supplier".into(),
+            format!("{}\n{}", data.supplier_name, data.supplier_address),
+        ),
         ("Supplier GSTIN".into(), data.supplier_gstin.clone()),
         ("Invoice No.".into(), data.invoice_number.clone()),
         ("Invoice Date".into(), data.invoice_date.to_string()),
-        ("Recipient".into(), format!("{}\n{}", data.recipient_name, data.recipient_address)),
+        (
+            "Recipient".into(),
+            format!("{}\n{}", data.recipient_name, data.recipient_address),
+        ),
         ("Recipient Country".into(), data.recipient_country.clone()),
         ("Place of Supply".into(), data.place_of_supply.clone()),
         ("Reverse Charge".into(), "No".into()),
         ("LUT Reference".into(), data.lut_reference.clone()),
         ("RBI Purpose Code".into(), data.purpose_code.clone()),
-        ("Mode of Export of Services".into(), format!("Mode {}", data.mode_of_export)),
-        ("Description of Services".into(), data.service_description.clone()),
+        (
+            "Mode of Export of Services".into(),
+            format!("Mode {}", data.mode_of_export),
+        ),
+        (
+            "Description of Services".into(),
+            data.service_description.clone(),
+        ),
         ("SAC Code".into(), data.sac_code.clone()),
         (
             "Taxable Value".into(),
-            format!("{}  ({})", data.taxable_value_foreign, inr(data.taxable_value_inr_paise)),
+            format!(
+                "{}  ({})",
+                data.taxable_value_foreign,
+                inr(data.taxable_value_inr_paise)
+            ),
         ),
-        ("Integrated Tax (IGST)".into(), "NIL — export under LUT".into()),
+        (
+            "Integrated Tax (IGST)".into(),
+            "NIL — export under LUT".into(),
+        ),
     ];
     for (k, v) in rows {
         table
@@ -164,7 +185,9 @@ pub fn render_lut(data: &LutData) -> anyhow::Result<Vec<u8>> {
         "LETTER OF UNDERTAKING FOR EXPORT WITHOUT PAYMENT OF INTEGRATED TAX",
         h1,
     )));
-    doc.push(elements::Paragraph::new("(Furnished under Rule 96A of the CGST Rules, 2017 — Form GST RFD-11)"));
+    doc.push(elements::Paragraph::new(
+        "(Furnished under Rule 96A of the CGST Rules, 2017 — Form GST RFD-11)",
+    ));
     doc.push(elements::Break::new(1.0));
 
     let body = format!(
@@ -234,7 +257,11 @@ mod tests {
     fn invoice_renders_valid_pdf_with_rule46_content() {
         let bytes = render_invoice(&invoice()).unwrap();
         assert!(bytes.starts_with(b"%PDF"), "not a pdf");
-        assert!(bytes.len() > 10_000, "suspiciously small pdf: {}", bytes.len());
+        assert!(
+            bytes.len() > 10_000,
+            "suspiciously small pdf: {}",
+            bytes.len()
+        );
     }
 
     #[test]

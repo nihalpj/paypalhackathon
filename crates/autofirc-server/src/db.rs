@@ -49,6 +49,68 @@ pub async fn set_enrichment(
     Ok(())
 }
 
+/// Classification result to persist, bundled to keep call sites readable.
+pub struct ClassificationUpdate<'a> {
+    pub purpose_code: &'a str,
+    pub mode_of_export: i16,
+    pub sac_code: &'a str,
+    pub confidence: i16,
+    pub backstop_note: Option<&'a str>,
+    pub status: &'a str,
+}
+
+/// Store AI classification results and transition the row.
+pub async fn set_classification(
+    pool: &PgPool,
+    id: &str,
+    u: &ClassificationUpdate<'_>,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE ledger SET purpose_code = $2, mode_of_export = $3, sac_code = $4, \
+         ai_confidence = $5, backstop_note = $6, status = $7, updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(u.purpose_code)
+    .bind(u.mode_of_export)
+    .bind(u.sac_code)
+    .bind(u.confidence)
+    .bind(u.backstop_note)
+    .bind(u.status)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Allocate the next GST invoice serial (`INV/<fy>/<seq:04>`).
+pub async fn next_invoice_number(pool: &PgPool, financial_year: &str) -> anyhow::Result<String> {
+    let seq: i64 = sqlx::query_scalar("SELECT nextval('invoice_serial')")
+        .fetch_one(pool)
+        .await?;
+    Ok(format!("INV/{financial_year}/{seq:04}"))
+}
+
+pub async fn set_documents(
+    pool: &PgPool,
+    id: &str,
+    invoice_number: &str,
+    invoice_pdf_key: &str,
+    lut_pdf_key: &str,
+    status: &str,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE ledger SET invoice_number = $2, invoice_pdf_key = $3, lut_pdf_key = $4, \
+         status = $5, updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(invoice_number)
+    .bind(invoice_pdf_key)
+    .bind(lut_pdf_key)
+    .bind(status)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn list_ledger(pool: &PgPool) -> anyhow::Result<Vec<serde_json::Value>> {
     let rows = sqlx::query_scalar::<_, serde_json::Value>(
         "SELECT to_jsonb(l) FROM ledger l ORDER BY created_at DESC",

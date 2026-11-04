@@ -7,6 +7,9 @@ license.workspace = true
 [dependencies]
 autofirc-core = { path = "../autofirc-core" }
 autofirc-paypal = { path = "../autofirc-paypal" }
+autofirc-ai = { path = "../autofirc-ai" }
+autofirc-pdf = { path = "../autofirc-pdf" }
+s3 = { package = "rust-s3", version = "0.38", default-features = false, features = ["tokio-rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
@@ -25,6 +28,7 @@ base64 = "0.22"
 sha2 = { version = "0.10", features = ["oid"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 redis = { version = "0.32", features = ["tokio-rustls-comp", "tls-rustls-webpki-roots"] }
+rustls = { version = "0.23", features = ["ring"] }
 
 [dev-dependencies]
 wiremock = "0.6"

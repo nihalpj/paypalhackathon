@@ -34,7 +34,15 @@ mod tests {
 
     #[test]
     fn prompt_contains_statutory_guardrails() {
-        for rule in ["P0103", "FORBIDDEN", "P0802", "P0807", "SOFTEX", "mode_of_export = 1", "85"] {
+        for rule in [
+            "P0103",
+            "FORBIDDEN",
+            "P0802",
+            "P0807",
+            "SOFTEX",
+            "mode_of_export = 1",
+            "85",
+        ] {
             assert!(GUARDRAIL_PROMPT.contains(rule), "missing guardrail: {rule}");
         }
     }

@@ -89,6 +89,7 @@ pub type CompleteFn = Arc<
 >;
 
 /// The classifier: a guardrail prompt + a provider completion closure.
+#[derive(Clone)]
 pub struct Classifier {
     complete: CompleteFn,
 }
@@ -152,7 +153,8 @@ mod tests {
 
     #[test]
     fn p0103_allowed_with_physical_goods_signals() {
-        let goods = json!({"order": {"purchase_units": [{"shipping": {}, "shipping_address": {}}]}});
+        let goods =
+            json!({"order": {"purchase_units": [{"shipping": {}, "shipping_address": {}}]}});
         let raw = r#"{"purpose_code":"P0103","mode_of_export":1,"sac_code":"0","confidence_score":95,"reasoning":"advance for goods"}"#;
         let out = validate(raw, &goods).unwrap();
         assert!(!out.needs_review);
