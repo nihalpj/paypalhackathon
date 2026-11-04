@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoFIRC — The Cross-Border Compliance Agent</title>
+<style>
+  :root {
+    --pp-dark: #003087; --pp-blue: #0070E0; --pp-yellow: #FFC439;
+    --ink: #1a1f36; --muted: #5b6478; --bg: #f6f8fb; --card: #ffffff;
+    --green: #12805c; --amber: #b7791f; --red: #c53030;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); background: var(--bg); line-height: 1.55; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  header.hero { background: linear-gradient(135deg, var(--pp-dark), var(--pp-blue)); color: #fff; padding: 72px 0 56px; }
+  .hero h1 { font-size: 44px; letter-spacing: -0.5px; }
+  .hero h1 span { color: var(--pp-yellow); }
+  .hero p.sub { font-size: 19px; opacity: .92; margin-top: 12px; max-width: 760px; }
+  .badges { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35);
+           border-radius: 999px; padding: 5px 14px; font-size: 13px; }
+  section { padding: 48px 0; }
+  h2 { font-size: 28px; color: var(--pp-dark); margin-bottom: 18px; }
+  h3 { font-size: 18px; margin-bottom: 8px; }
+  .grid { display: grid; gap: 16px; }
+  .grid.cols2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .grid.cols4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card { background: var(--card); border: 1px solid #e3e8f0; border-radius: 12px; padding: 20px; }
+  .card p { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+  .phase { border-top: 4px solid var(--pp-blue); }
+  .phase .num { display: inline-block; background: var(--pp-blue); color: #fff; border-radius: 8px;
+                padding: 2px 10px; font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #e3e8f0; font-size: 14px; vertical-align: top; }
+  th { background: var(--pp-dark); color: #fff; }
+  code { background: #eef2f9; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  ol.flow { list-style: none; counter-reset: step; }
+  ol.flow li { counter-increment: step; background: var(--card); border: 1px solid #e3e8f0;
+               border-radius: 10px; padding: 12px 16px 12px 52px; margin-bottom: 10px; position: relative; font-size: 14.5px; }
+  ol.flow li::before { content: counter(step); position: absolute; left: 14px; top: 12px;
+                       background: var(--pp-blue); color: #fff; width: 26px; height: 26px; border-radius: 50%;
+                       display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+  .actor { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+           border-radius: 6px; padding: 2px 8px; margin-right: 8px; }
+  .a-merchant { background: #e6f4ea; color: var(--green); }
+  .a-paypal { background: #fff3d6; color: #8a6d00; }
+  .a-agent { background: #e0ebff; color: var(--pp-dark); }
+  .a-bank { background: #fde8e8; color: var(--red); }
+  .a-dgft { background: #efe6fd; color: #6b21a8; }
+  .alert-chip { font-weight: 700; }
+  .alert-chip.amber { color: var(--amber); } .alert-chip.red { color: var(--red); } .alert-chip.green { color: var(--green); }
+  footer { background: var(--pp-dark); color: #cdd8f0; padding: 28px 0; font-size: 13.5px; }
+  .note { background: #fff8e1; border: 1px solid var(--pp-yellow); border-radius: 10px; padding: 14px 18px; font-size: 14px; margin-top: 16px; }
+  ul.tight li { margin: 6px 0 6px 20px; font-size: 14.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>AutoFIRC <span>v2.0</span></h1>
+    <p class="sub">The cross-border compliance agent. AutoFIRC watches your PayPal payments, classifies every
+      remittance against RBI purpose codes with AI, generates GST-compliant export documents, tracks FEMA
+      realization deadlines, and reconciles eBRCs with the DGFT — zero-touch, end to end.</p>
+    <div class="badges">
+      <span class="badge">Most Impactful</span>
+      <span class="badge">Best Use of PayPal + AI</span>
+      <span class="badge">Best Use of Agentic Commerce</span>
+      <span class="badge">Best Use of AG Grid</span>
+      <span class="badge">Build What's Next with PayPal and AI</span>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap">
+    <h2>The problem: India's compliance gauntlet</h2>
+    <div class="grid cols2">
+      <div class="card"><h3>OPGSP → PA-CB regime shift</h3>
+        <p>RBI replaced the OPGSP framework (31 Oct 2023 circular, consolidated 15 Sep 2025). Cross-border
+        aggregators now answer directly to the RBI with a ₹25 lakh per-unit cap — and the documentation burden
+        was pushed downstream onto every freelancer and SMB exporter.</p></div>
+      <div class="card"><h3>FEMA 2026: the 9-month clock</h3>
+        <p>FEMA 23(R)/2026-RB (in force 1 Oct 2026) compresses export realization to <strong>9 months</strong>
+        (12 for INR/Vostro invoicing). Miss it and face penalties up to 3× the sum involved plus ₹5,000/day —
+        and a place on the RBI Caution List.</p></div>
+      <div class="card"><h3>eBRC self-certification</h3>
+        <p>Since Trade Notice 33/2023-24, banks push Inward Remittance Messages to DGFT and exporters must
+        match and self-certify eBRCs themselves — with a mandatory GATS "Mode of Export of Services" field
+        since 1 May 2025 and GST invoice details mandatory since 13 Jan 2026.</p></div>
+      <div class="card"><h3>The purpose-code minefield</h3>
+        <p>P0802 vs P0803 vs P0807 (SOFTEX/Non-STP obligations) vs the deadly P0103: misclassify a service
+        export as an advance for physical goods and EDPMS opens a "ghost" shipment obligation that can never
+        be closed. GST Rule 96A adds 18% interest if LUT exports aren't realized in forex within a year.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="solution">
+  <div class="wrap">
+    <h2>The solution: four autonomous phases</h2>
+    <div class="grid cols4">
+      <div class="card phase"><span class="num">PHASE 1</span><h3>Ingestion</h3>
+        <p>Signed PayPal webhooks verified offline (raw-byte CRC32 + RSA-SHA256, paypal.com cert allowlist),
+        acknowledged in under 2 seconds, and queued for async processing. Idempotent by webhook ID.</p></div>
+      <div class="card phase"><span class="num">PHASE 2</span><h3>AI Analysis &amp; Documents</h3>
+        <p>A guardrailed LLM assigns the RBI purpose code, GATS export mode, and SAC code with a confidence
+        score — P0103 is hard-forbidden for services. GST Rule 46 invoices and LUT declarations are rendered
+        as PDFs and stored with signed URLs. Low confidence routes to manual review.</p></div>
+      <div class="card phase"><span class="num">PHASE 3</span><h3>Dashboard &amp; Command</h3>
+        <p>An AG Studio compliance ledger with FEMA deadline widgets (<span class="alert-chip amber">amber at 7 months</span>,
+        <span class="alert-chip red">red at 8</span>) and a conversational agent bar: "Isolate October transactions
+        without eBRC under P0802 and stage them."</p></div>
+      <div class="card phase"><span class="num">PHASE 4</span><h3>Petition &amp; Reconciliation</h3>
+        <p>The compliance packet (invoice + LUT + PayPal receipt as FIRA) is dispatched to the bank via
+        Zapier MCP. AutoFIRC then authenticates to DGFT (PBKDF2 + RSA-SHA256), matches IRMs under clubbing
+        rules, and self-certifies the eBRC — or drives the DGFT portal itself through a KERNEL browser agent.</p></div>
+    </div>
+    <div class="note"><strong>Demo note:</strong> the real DGFT Open API requires an IEC, IP whitelisting, and FIU
+    registration — unobtainable in a hackathon. AutoFIRC ships a production-faithful client plus a high-fidelity
+    mock DGFT server, and a KERNEL cloud-browser agent that operates the real portal UI with live session replay.</div>
+  </div>
+</section>
+
+<section id="flow">
+  <div class="wrap">
+    <h2>Detailed flow — 15 steps, 5 actors</h2>
+    <ol class="flow">
+      <li><span class="actor a-merchant">Merchant</span> Finishes a milestone; AutoFIRC issues a draft invoice via PayPal Invoicing v2 with detailed line items and sends it.</li>
+      <li><span class="actor a-paypal">Foreign Client</span> Pays on the PayPal-hosted page in local currency; PayPal handles FX inside the PA-CB banking channel and settles INR.</li>
+      <li><span class="actor a-paypal">PayPal</span> Emits <code>PAYMENT.CAPTURE.COMPLETED</code> → AutoFIRC buffers raw bytes, verifies CRC32 + RSA-SHA256 offline (cert must be paypal.com), inserts a ledger row, enqueues a job, returns HTTP 200 in &lt; 2s.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> The row appears on the dashboard as <code>Pending Analysis</code> in real time.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> The worker fetches OAuth2 token → <code>GET /v2/checkout/orders/{id}</code> + <code>GET /v2/payments/captures/{id}</code> for line items, buyer metadata, INR settlement, FX rate, fees.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> The guardrailed classifier returns <code>{purpose_code, mode_of_export, sac_code, confidence_score}</code>. P0103 forbidden for services; remote digital services → Mode 1 (Cross-Border Supply); P0807 flags a SOFTEX/Non-STP warning.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> Confidence &lt; 85 → <code>Manual Review</code>. Purpose codes are never hand-editable (TBML guardrail).</li>
+      <li><span class="actor a-agent">AutoFIRC</span> typst renders the GST Rule 46 commercial invoice (17 mandatory fields + LUT endorsement) and the LUT declaration → Supabase Storage with signed URLs → <code>Compliance Packet Ready</code>.</li>
+      <li><span class="actor a-merchant">Merchant</span> Opens the AG Studio ledger: FEMA countdown widgets, eBRC status tiles, purpose-code charts. Amber at 7 months, red at 8.</li>
+      <li><span class="actor a-merchant">Merchant</span> Types a natural-language command; the Studio Agent Framework isolates the rows; merchant clicks <strong>Authorize Bank Petition</strong> (bulk).</li>
+      <li><span class="actor a-bank">Bank</span> Receives the encrypted packet (invoice + LUT + PayPal capture receipt as FIRA) via Zapier MCP email; verifies and closes the EDPMS entry; IRMs flow to DGFT.</li>
+      <li><span class="actor a-dgft">DGFT</span> AutoFIRC authenticates (API key + PBKDF2-hashed client secret, 65,536 iterations) and fetches pending IRMs for the merchant's IEC.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> IRMs are matched under clubbing rules (same bank, account, currency; advances need invoice date ≥ remittance date).</li>
+      <li><span class="actor a-dgft">DGFT</span> The RSA-SHA256-signed payload (invoice + SAC + Mode of Export + GST details) is submitted → eBRC number issued → <code>Fully Reconciled &amp; Compliant</code>. Failures retry with backoff.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> If the Open API is unreachable, a KERNEL cloud-browser agent logs into the DGFT portal and self-certifies via the UI — with a 24fps live view and full replay for auditors.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="apis">
+  <div class="wrap">
+    <h2>PayPal API surface</h2>
+    <table>
+      <tr><th>Capability</th><th>API / mechanism</th><th>Where used</th></tr>
+      <tr><td>Auth</td><td><code>POST /v1/oauth2/token</code> (client-credentials, cached)</td><td>Token manager</td></tr>
+      <tr><td>Invoicing</td><td>Invoicing v2 <code>POST /v2/invoicing/invoices</code>, <code>/send</code></td><td>Phase 1 invoice issuance</td></tr>
+      <tr><td>Orders</td><td>Orders v2 <code>GET /v2/checkout/orders/{id}</code></td><td>Phase 2 line-item enrichment</td></tr>
+      <tr><td>Payments</td><td><code>GET /v2/payments/captures/{id}</code></td><td>INR settlement, FX rate, fees (FIRA)</td></tr>
+      <tr><td>Webhooks</td><td><code>PAYMENT.CAPTURE.COMPLETED</code> + offline signature verification (CRC32 + RSA-SHA256, X.509)</td><td>Phase 1 ingestion</td></tr>
+      <tr><td>Webhook mgmt</td><td><code>POST /v1/notifications/webhooks</code></td><td><code>autofirc setup</code> CLI</td></tr>
+      <tr><td>Simulator</td><td>Sandbox webhook simulator + sandbox accounts</td><td>Tests and demo</td></tr>
+      <tr><td>Agent tooling</td><td><code>@paypal/agent-toolkit</code>-equivalent tools via the rig SDK</td><td>Phase 2 agent enrichment</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <h2>Tech stack</h2>
+    <div class="grid cols2">
+      <div class="card"><h3>Rust core (Cargo workspace)</h3>
+        <ul class="tight">
+          <li><code>autofirc-core</code> — domain rules: purpose codes, FEMA engine, DGFT clubbing</li>
+          <li><code>autofirc-paypal</code> — webhook crypto, OAuth2, Orders/Captures clients</li>
+          <li><code>autofirc-ai</code> — rig SDK classifier (Gemini default; any provider via env)</li>
+          <li><code>autofirc-dgft</code> — PBKDF2/RSA-SHA256 eBRC client + mock server</li>
+          <li><code>autofirc-portal</code> — KERNEL browser-agent for the DGFT portal</li>
+          <li><code>autofirc-pdf</code> — typst GST invoices &amp; LUT declarations</li>
+          <li><code>autofirc-server</code> — Axum API + queue workers</li>
+          <li><code>autofirc-cli</code> — agent skill for Claude Code / Kimi / OpenClaw</li>
+        </ul></div>
+      <div class="card"><h3>Platform &amp; sponsors</h3>
+        <ul class="tight">
+          <li><strong>AG Studio</strong> — dashboard, widgets, Studio Agent Framework</li>
+          <li><strong>APIMatic</strong> — Context Plugin for PayPal during development</li>
+          <li><strong>KERNEL</strong> — cloud browsers for portal automation + replay</li>
+          <li><strong>Render</strong> — hosting for server, dashboard, mock DGFT</li>
+          <li><strong>Zapier MCP</strong> — bank-petition email + merchant alerts</li>
+          <li>Supabase Postgres + Storage · Upstash Redis queue · typst PDFs</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="personas">
+  <div class="wrap">
+    <h2>Who it's for</h2>
+    <div class="grid cols2">
+      <div class="card"><h3>The Merchant</h3><p>Indian freelancer or SMB exporting digital services. Wants working-capital velocity without regulatory paperwork — reviews AI-classified ledgers, authorizes bulk submissions by natural language.</p></div>
+      <div class="card"><h3>The Foreign Client</h3><p>Pays on a familiar PayPal checkout page in local currency; never sees Indian regulatory complexity.</p></div>
+      <div class="card"><h3>The Bank Compliance Officer</h3><p>Receives complete, verifiable compliance packets — invoice, LUT, remittance advice — ready for EDPMS closure.</p></div>
+      <div class="card"><h3>The DGFT System</h3><p>Receives correctly matched, signed eBRC payloads with the mandatory Mode of Export and GST invoice fields.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    AutoFIRC — built for the "Build What's Next with PayPal and AI" hackathon. PayPal sandbox only.
+    MIT licensed. Regulatory data verified against RBI/DGFT sources as of November 2026.
+  </div>
+</footer>
+
+</body>
+</html>
