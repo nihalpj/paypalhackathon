@@ -30,29 +30,37 @@ const MODE_OF_EXPORT: Record<number, string> = {
 function PipelineStepper({ status }: { status: LedgerRow['status'] }) {
   const currentIndex = PIPELINE.indexOf(status)
   return (
-    <ol className="stepper" aria-label="Compliance pipeline progress">
-      {PIPELINE.map((step, i) => {
-        const state =
-          step === status
-            ? 'current'
-            : step === 'manual_review' && status !== 'manual_review'
-              ? i < currentIndex
-                ? 'visited-branch'
-                : 'branch'
-              : i < currentIndex
-                ? 'done'
-                : 'todo'
-        return (
-          <li key={step} className={`step step-${state}`} title={STATUS_LABELS[step]}>
-            <span className="step-node" aria-hidden />
-            <span className="step-label">
-              {STATUS_LABELS[step]}
-              {step === 'manual_review' && <span className="step-branch-tag">side branch</span>}
-            </span>
-          </li>
-        )
-      })}
-    </ol>
+    <>
+      {status === 'domestic_rejected' && (
+        <p className="rejection-banner" role="alert">
+          Rejected — domestic payment. PayPal India merchant accounts accept
+          international (cross-border) payments only.
+        </p>
+      )}
+      <ol className="stepper" aria-label="Compliance pipeline progress">
+        {PIPELINE.map((step, i) => {
+          const state =
+            step === status
+              ? 'current'
+              : step === 'manual_review' && status !== 'manual_review'
+                ? i < currentIndex
+                  ? 'visited-branch'
+                  : 'branch'
+                : i < currentIndex
+                  ? 'done'
+                  : 'todo'
+          return (
+            <li key={step} className={`step step-${state}`} title={STATUS_LABELS[step]}>
+              <span className="step-node" aria-hidden />
+              <span className="step-label">
+                {STATUS_LABELS[step]}
+                {step === 'manual_review' && <span className="step-branch-tag">side branch</span>}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </>
   )
 }
 

@@ -36,6 +36,10 @@ auto-reconcile: club IRMs, submit signed eBRC self-certification ──▶ ✅ f
 - **Agent-native**: everything the dashboard does is also a JSON-emitting CLI
   (`autofirc`) plus a packaged agent skill, so Claude Code, Kimi, OpenClaw,
   or Hermes can drive a merchant's compliance programmatically.
+- **Cross-border by design**: PayPal India merchant accounts accept
+  international payments only, so AutoFIRC enforces the same rule — a
+  deterministic guard rejects domestic (Indian-payer) transactions before
+  any classification or document work, and alerts the merchant.
 
 ## Architecture
 

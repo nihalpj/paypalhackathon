@@ -24,7 +24,8 @@ fn scenario(id: &str) -> (Value, Value) {
               ccy: &str,
               foreign: &str,
               inr: &str,
-              goods: bool| {
+              goods: bool,
+              country: &str| {
         let mut unit = json!({
             "reference_id": "default",
             "description": desc,
@@ -35,18 +36,23 @@ fn scenario(id: &str) -> (Value, Value) {
             unit["shipping_address"] =
                 json!({"address_line_1": "1 Export Plaza", "country_code": "US"});
         }
+        let payer = json!({
+            "name": {"given_name": client},
+            "email_address": email,
+            "address": {"country_code": country},
+        });
         let order = json!({
             "id": order_id,
             "status": "COMPLETED",
             "intent": "CAPTURE",
-            "payer": {"name": {"given_name": client}, "email_address": email},
+            "payer": payer,
             "purchase_units": [unit],
         });
         let capture = json!({
             "id": capture_id,
             "status": "COMPLETED",
             "amount": {"currency_code": ccy, "value": foreign},
-            "payer": {"name": {"given_name": client}, "email_address": email},
+            "payer": payer,
             "seller_receivable_breakdown": {
                 "gross_amount": {"currency_code": ccy, "value": foreign},
                 "paypal_fee": {"currency_code": ccy, "value": "0.00"},
@@ -66,6 +72,7 @@ fn scenario(id: &str) -> (Value, Value) {
             "500.00",
             "41500.00",
             false,
+            "US",
         ),
         // Deliberately ambiguous scope → low confidence → manual review.
         Some('2') => mk(
@@ -76,6 +83,7 @@ fn scenario(id: &str) -> (Value, Value) {
             "1200.00",
             "126000.00",
             false,
+            "GB",
         ),
         // Physical goods with shipping signals (→ P0103, passes backstop).
         Some('3') => mk(
@@ -86,6 +94,7 @@ fn scenario(id: &str) -> (Value, Value) {
             "2400.00",
             "199200.00",
             true,
+            "CN",
         ),
         // Design services in EUR (→ services classification).
         Some('4') => mk(
@@ -96,6 +105,19 @@ fn scenario(id: &str) -> (Value, Value) {
             "750.00",
             "67500.00",
             false,
+            "DE",
+        ),
+        // Domestic trap: Indian payer → rejected by the cross-border guard
+        // (PayPal India accounts accept international payments only).
+        Some('9') => mk(
+            "Rao Enterprises",
+            "accounts@raoent.in",
+            "Domestic retainer (should never clear compliance)",
+            "USD",
+            "60.00",
+            "5000.00",
+            false,
+            "IN",
         ),
         // Default: small services audit.
         _ => mk(
@@ -106,6 +128,7 @@ fn scenario(id: &str) -> (Value, Value) {
             "250.00",
             "20750.00",
             false,
+            "US",
         ),
     }
 }
@@ -161,6 +184,23 @@ mod tests {
                 .pointer("/seller_receivable_breakdown/net_amount/value")
                 .and_then(|v| v.as_str()),
             Some("41500.00")
+        );
+    }
+
+    #[test]
+    fn domestic_trap_scenario_carries_indian_payer() {
+        let (order, capture) = scenario("demo-9");
+        assert_eq!(
+            order
+                .pointer("/payer/address/country_code")
+                .and_then(|v| v.as_str()),
+            Some("IN")
+        );
+        assert_eq!(
+            capture
+                .pointer("/payer/address/country_code")
+                .and_then(|v| v.as_str()),
+            Some("IN")
         );
     }
 }

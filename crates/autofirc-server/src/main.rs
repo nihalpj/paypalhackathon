@@ -104,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
         classifier,
         store: pdf_store.clone(),
         merchant: worker::MerchantProfile::from_env(),
+        dispatcher: autofirc_server::actions::ActionDispatcher::from_env(),
     };
     let reconcile_pipeline = worker::ReconcilePipeline::from_env(pool.clone(), pdf_store.clone());
 

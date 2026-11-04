@@ -27,6 +27,7 @@ export type LedgerStatus =
   | 'petition_authorized'
   | 'bank_petitioned'
   | 'fully_reconciled'
+  | 'domestic_rejected'
 
 export const PIPELINE: LedgerStatus[] = [
   'pending_analysis',
@@ -64,4 +65,5 @@ export const STATUS_LABELS: Record<LedgerStatus, string> = {
   petition_authorized: 'Authorized',
   bank_petitioned: 'Bank petitioned',
   fully_reconciled: 'Reconciled',
+  domestic_rejected: 'Domestic ✕',
 }

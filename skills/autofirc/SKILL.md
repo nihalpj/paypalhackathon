@@ -16,7 +16,10 @@ stdout. Default server: `http://localhost:8080` (override with
 - `autofirc list [--status <status>]` — all ledger rows.
   Statuses, in order: `pending_analysis` → `enriched` → `compliance_packet_ready`
   → `petition_authorized` → `bank_petitioned` → `fully_reconciled`
-  (side branch: `manual_review`).
+  (side branches: `manual_review`; terminal rejection: `domestic_rejected`).
+- `domestic_rejected` rows are terminal: the payer is Indian, and PayPal
+  India merchant accounts accept international payments only. Never petition
+  them; explain the rejection to the user instead.
 - `autofirc get <event_id>` — one row plus presigned invoice/LUT URLs.
 - `autofirc query <question...>` — natural-language filter
   ("unreconciled rows past the amber deadline", "software exports above

@@ -48,6 +48,8 @@ pub struct Pipeline {
     /// None in offline/dev runs: classification still happens, PDFs don't.
     pub store: Option<PdfStore>,
     pub merchant: MerchantProfile,
+    /// Merchant alerting (domestic rejections etc.); log-only without Zapier.
+    pub dispatcher: crate::actions::ActionDispatcher,
 }
 
 /// Best-effort INR settlement in paise from the capture's seller breakdown.
@@ -98,6 +100,11 @@ pub fn extract_foreign_amount(enrichment: &serde_json::Value) -> String {
     format!("{ccy} {val}")
 }
 
+/// Payer country for the GST invoice's recipient fields ("US", "GB", ...).
+pub fn extract_payer_country(enrichment: &serde_json::Value) -> String {
+    autofirc_core::cross_border::payer_country(enrichment).unwrap_or_else(|| "—".into())
+}
+
 /// Phase 2 pipeline: enrich → classify → documents.
 pub async fn process(job: EnrichJob, p: &Pipeline) -> anyhow::Result<()> {
     // 1. Enrich with full PayPal order/capture data.
@@ -120,6 +127,24 @@ pub async fn process(job: EnrichJob, p: &Pipeline) -> anyhow::Result<()> {
         extract_inr_paise(&enrichment),
     )
     .await?;
+
+    // 1b. Cross-border guard: PayPal India merchant accounts accept
+    // international payments only. Domestic payers are rejected before any
+    // classification or document work happens.
+    if !autofirc_core::cross_border::is_cross_border(&enrichment) {
+        crate::db::set_status(&p.pool, &job.event_id, "domestic_rejected").await?;
+        p.dispatcher
+            .alert(&crate::actions::MerchantAlert {
+                kind: "domestic_rejected".into(),
+                event_id: job.event_id.clone(),
+                detail: "payer is Indian; PayPal India accounts accept \
+                         international payments only — row rejected"
+                    .into(),
+            })
+            .await?;
+        tracing::warn!(event_id = %job.event_id, "domestic payment rejected");
+        return Ok(());
+    }
 
     // 2. AI classification under regulatory guardrails.
     let Some(classifier) = &p.classifier else {
@@ -166,7 +191,7 @@ pub async fn process(job: EnrichJob, p: &Pipeline) -> anyhow::Result<()> {
         invoice_date: chrono::Utc::now().date_naive(),
         recipient_name: extract_client_name(&enrichment),
         recipient_address: String::new(),
-        recipient_country: "—".into(),
+        recipient_country: extract_payer_country(&enrichment),
         service_description: extract_service_description(&enrichment),
         sac_code: c.sac_code.clone(),
         taxable_value_foreign: extract_foreign_amount(&enrichment),
@@ -242,6 +267,16 @@ mod tests {
             "Export of digital services"
         );
         assert_eq!(extract_foreign_amount(&e), " 0.00");
+    }
+
+    #[test]
+    fn payer_country_feeds_invoice_and_guard() {
+        let foreign = json!({"order": {"payer": {"address": {"country_code": "us"}}}});
+        assert_eq!(extract_payer_country(&foreign), "US");
+        assert!(autofirc_core::cross_border::is_cross_border(&foreign));
+        let domestic = json!({"order": {"payer": {"address": {"country_code": "IN"}}}});
+        assert_eq!(extract_payer_country(&domestic), "IN");
+        assert!(!autofirc_core::cross_border::is_cross_border(&domestic));
     }
 }
 

@@ -6,6 +6,10 @@
 #   mock-dgft    → DGFT Open API (PBKDF2 handshake, IRMs, eBRC)
 #   autofirc-sim → signed demo webhook traffic
 #
+# Scenario suffixes: 1=software (auto), 2=ambiguous (manual review),
+# 3=goods (P0103), 4=design EUR, 9=DOMESTIC TRAP (rejected, Indian payer),
+# anything else=small audit.
+#
 # Usage: ./scripts/demo.sh [--count N]
 set -euo pipefail
 cd "$(dirname "$0")/.."

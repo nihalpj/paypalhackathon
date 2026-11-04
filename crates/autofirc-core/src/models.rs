@@ -12,6 +12,9 @@ pub enum TxnStatus {
     BankPetitioned,
     DgftRetry,
     FullyReconciled,
+    /// Terminal: payer is Indian — PayPal India accounts accept
+    /// international payments only, so the pipeline refuses the row.
+    DomesticRejected,
 }
 
 impl TxnStatus {
@@ -24,6 +27,7 @@ impl TxnStatus {
                 | (PendingAnalysis, ManualReview)
                 | (Enriched, ManualReview)
                 | (Enriched, CompliancePacketReady)
+                | (Enriched, DomesticRejected)
                 | (ManualReview, PendingAnalysis) // merchant re-runs classification
                 | (CompliancePacketReady, PetitionAuthorized)
                 | (PetitionAuthorized, BankPetitioned)
@@ -64,5 +68,7 @@ mod tests {
         assert!(!TxnStatus::PendingAnalysis.can_transition_to(TxnStatus::FullyReconciled));
         assert!(!TxnStatus::FullyReconciled.can_transition_to(TxnStatus::PendingAnalysis));
         assert!(!TxnStatus::ManualReview.can_transition_to(TxnStatus::CompliancePacketReady));
+        assert!(TxnStatus::Enriched.can_transition_to(TxnStatus::DomesticRejected));
+        assert!(!TxnStatus::DomesticRejected.can_transition_to(TxnStatus::PendingAnalysis));
     }
 }

@@ -52,6 +52,7 @@
     <div id="paypal-buttons"></div>
     <div id="status"></div>
     <p class="hint">Sandbox: log in with a <em>personal sandbox account</em> from the PayPal developer portal. After capture, the webhook drives classification → GST documents → bank petition → eBRC. Watch it in the dashboard or with <code>autofirc watch</code>.</p>
+    <p class="hint"><strong>Cross-border only:</strong> under PayPal's India policy, Indian merchants can accept international payments only — Indian-issued PayPal accounts cannot check out here. AutoFIRC enforces the same rule downstream: any payment from an Indian payer is rejected before compliance processing.</p>
   </div>
 
 <script src="https://www.paypal.com/sdk/js?client-id={{CLIENT_ID}}&currency=USD&intent=capture"></script>
