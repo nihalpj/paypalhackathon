@@ -1,0 +1,182 @@
+/* AutoFIRC — dark fintech ledger. Deep navy base, PayPal-adjacent blue accent. */
+
+:root {
+  --bg: #0b1220;
+  --surface: #101a30;
+  --surface-2: #0d1526;
+  --border: #1d2a47;
+  --border-strong: #2a3c63;
+  --text: #dbe4f5;
+  --text-muted: #8fa3c8;
+  --accent: #3b7bff;
+  --accent-deep: #003087;
+  --green: #2fa36b;
+  --green-dim: rgba(47, 163, 107, 0.14);
+  --amber: #c9932b;
+  --amber-dim: rgba(201, 147, 43, 0.14);
+  --red: #e0525c;
+  --red-dim: rgba(224, 82, 92, 0.14);
+  --radius: 8px;
+  --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 80% -10%, #12203c 0%, var(--bg) 55%) var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 960px;
+}
+
+/* ---------- header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.brand-accent {
+  color: var(--accent);
+}
+
+.tagline {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 28px 24px;
+  gap: 14px;
+}
+
+.grid-area {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.grid-wrap {
+  height: 100%;
+}
+
+/* ---------- banners ---------- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.banner-error {
+  background: var(--red-dim);
+  border: 1px solid rgba(224, 82, 92, 0.4);
+  color: #f2b6bb;
+}
+
+.banner-info {
+  background: rgba(59, 123, 255, 0.1);
+  border: 1px solid rgba(59, 123, 255, 0.35);
+  color: #b9d1ff;
+}
+
+/* ---------- skeleton / empty ---------- */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+
+.skeleton-row {
+  height: 34px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface) 25%, #182649 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row {
+    animation: none;
+  }
+}
+
+.empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}

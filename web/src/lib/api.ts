@@ -1,0 +1,46 @@
+import type { DocumentsResponse, LedgerFilter, LedgerRow, PetitionResponse } from '../types'
+
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail = ''
+    try {
+      detail = await res.text()
+    } catch {
+      // ignore body read failure
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`)
+  }
+  return res.json() as Promise<T>
+}
+
+export async function fetchLedger(): Promise<LedgerRow[]> {
+  const res = await fetch('/api/ledger')
+  return json<LedgerRow[]>(res)
+}
+
+export async function fetchDocuments(id: string): Promise<DocumentsResponse> {
+  const res = await fetch(`/api/ledger/${encodeURIComponent(id)}/documents`)
+  return json<DocumentsResponse>(res)
+}
+
+export async function postPetition(eventIds: string[]): Promise<PetitionResponse> {
+  const res = await fetch('/api/petition', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_ids: eventIds }),
+  })
+  return json<PetitionResponse>(res)
+}
+
+/**
+ * Natural-language ledger filter. Throws when no LLM key is configured (503);
+ * callers fall back to client-side text search.
+ */
+export async function postQuery(query: string): Promise<LedgerFilter> {
+  const res = await fetch('/api/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+  return json<LedgerFilter>(res)
+}
