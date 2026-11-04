@@ -99,6 +99,12 @@ impl Classifier {
         Self { complete }
     }
 
+    /// The provider completion closure, for sibling engines (query parser)
+    /// that share the same configured model.
+    pub fn complete_fn(&self) -> CompleteFn {
+        self.complete.clone()
+    }
+
     /// Classify an enriched PayPal transaction. The system prompt carries the
     /// statutory guardrails; `validate` applies the deterministic backstop.
     pub async fn classify(

@@ -3,3 +3,4 @@
 pub mod classify;
 pub mod prompt;
 pub mod provider;
+pub mod query;

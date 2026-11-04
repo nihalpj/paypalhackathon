@@ -62,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
         enqueue,
         enqueue_reconcile,
         store: pdf_store.clone(),
+        query_parser: None, // replaced below once the classifier is built
         pinned_webhook_key: None,
     };
 
@@ -71,6 +72,12 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!(error = %e, "no LLM provider configured; rows will go to manual review");
             None
         }
+    };
+    let state = AppState {
+        query_parser: classifier
+            .as_ref()
+            .map(autofirc_ai::query::QueryParser::from_classifier),
+        ..state
     };
     let pipeline = worker::Pipeline {
         paypal,

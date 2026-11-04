@@ -28,6 +28,8 @@ pub struct AppState {
     pub enqueue_reconcile: ReconcileEnqueueFn,
     /// Object storage for presigned document URLs (None in offline dev).
     pub store: Option<PdfStore>,
+    /// NL→filter parser for the dashboard search bar (None without an LLM key).
+    pub query_parser: Option<autofirc_ai::query::QueryParser>,
     /// Test hook: when set, skips cert fetch and uses this key directly.
     pub pinned_webhook_key: Option<rsa::RsaPublicKey>,
 }
@@ -153,6 +155,30 @@ pub async fn authorize_petition(
     )
 }
 
+/// Natural-language ledger search: merchant's question → structured filter
+/// the dashboard applies client-side.
+#[derive(Debug, serde::Deserialize)]
+pub struct NlQueryRequest {
+    pub query: String,
+}
+
+pub async fn nl_query(
+    State(state): State<AppState>,
+    Json(req): Json<NlQueryRequest>,
+) -> impl IntoResponse {
+    let Some(parser) = &state.query_parser else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "no LLM provider configured",
+        )
+            .into_response();
+    };
+    match parser.parse(&req.query).await {
+        Ok(filter) => (StatusCode::OK, Json(filter)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 /// Presigned download URLs for a row's generated documents.
 pub async fn get_documents(
     State(state): State<AppState>,
@@ -190,6 +216,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/webhooks/paypal", post(paypal_webhook))
         .route("/api/ledger", get(list_ledger))
         .route("/api/petition", post(authorize_petition))
+        .route("/api/query", post(nl_query))
         .route("/api/ledger/{id}/documents", get(get_documents))
         .with_state(state)
 }
@@ -223,6 +250,7 @@ mod tests {
             }),
             enqueue_reconcile: Arc::new(|_job| Box::pin(async {})),
             store: None,
+            query_parser: None,
             pinned_webhook_key: Some(public),
         };
         (state, private, enqueued)
