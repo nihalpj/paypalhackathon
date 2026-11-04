@@ -249,6 +249,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "autofirc-dgft"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "autofirc-core",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "pbkdf2",
+ "rand 0.8.8",
+ "reqwest 0.12.28",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
 name = "autofirc-paypal"
 version = "0.1.0"
 dependencies = [
@@ -2042,6 +2064,16 @@ dependencies = [
  "redox_syscall 0.5.18",
  "smallvec",
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "pbkdf2"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
+dependencies = [
+ "digest",
+ "hmac",
 ]
 
 [[package]]
