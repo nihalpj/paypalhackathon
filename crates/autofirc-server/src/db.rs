@@ -49,6 +49,24 @@ pub async fn set_enrichment(
     Ok(())
 }
 
+/// Denormalized display fields extracted from the enrichment payload.
+pub async fn set_display_fields(
+    pool: &PgPool,
+    id: &str,
+    client_name: &str,
+    amount_inr_paise: i64,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE ledger SET client_name = $2, amount_inr_paise = $3, updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(client_name)
+    .bind(amount_inr_paise)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// Classification result to persist, bundled to keep call sites readable.
 pub struct ClassificationUpdate<'a> {
     pub purpose_code: &'a str,

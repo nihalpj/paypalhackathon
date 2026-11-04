@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoFIRC demo store — checkout</title>
+<style>
+  :root { --pp-dark:#003087; --pp-blue:#0070E0; --ink:#1a1f36; --muted:#5b6478; --bg:#f6f8fb; --card:#fff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+         background:var(--bg); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card { background:var(--card); border:1px solid #e3e8f0; border-radius:16px; padding:32px;
+          max-width:460px; width:100%; box-shadow:0 8px 30px rgba(0,48,135,.08); }
+  h1 { font-size:20px; color:var(--pp-dark); }
+  .sub { color:var(--muted); font-size:13.5px; margin:4px 0 20px; }
+  label { display:block; font-size:13px; font-weight:600; margin:14px 0 4px; }
+  input, select { width:100%; padding:10px 12px; border:1px solid #d4dbe8; border-radius:8px; font-size:14px; }
+  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  #paypal-buttons { margin-top:24px; }
+  #status { margin-top:18px; font-size:14px; padding:12px 14px; border-radius:10px; display:none; }
+  #status.ok { display:block; background:#e6f4ea; color:#12805c; }
+  #status.err { display:block; background:#fde8e8; color:#c53030; }
+  #status.info { display:block; background:#e0ebff; color:var(--pp-dark); }
+  .hint { margin-top:16px; font-size:12px; color:var(--muted); }
+  code { background:#eef2f9; padding:1px 6px; border-radius:6px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Demo Exports LLP — invoice payment</h1>
+    <p class="sub">A cross-border client paying an Indian exporter. This payment flows straight into the AutoFIRC compliance pipeline.</p>
+
+    <label for="desc">Service</label>
+    <select id="desc">
+      <option value="Remote software consulting, October 2026 sprint">Software consulting — P0802 scenario</option>
+      <option value="Brand identity and UX design services">Design services — EUR-friendly scenario</option>
+      <option value="Code review and architecture audit">Architecture audit</option>
+    </select>
+    <div class="row">
+      <div>
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" min="1" step="0.01" value="500.00">
+      </div>
+      <div>
+        <label for="currency">Currency</label>
+        <select id="currency">
+          <option>USD</option><option>EUR</option><option>GBP</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="paypal-buttons"></div>
+    <div id="status"></div>
+    <p class="hint">Sandbox: log in with a <em>personal sandbox account</em> from the PayPal developer portal. After capture, the webhook drives classification → GST documents → bank petition → eBRC. Watch it in the dashboard or with <code>autofirc watch</code>.</p>
+  </div>
+
+<script src="https://www.paypal.com/sdk/js?client-id={{CLIENT_ID}}&currency=USD&intent=capture"></script>
+<script>
+  const status = (cls, msg) => {
+    const el = document.getElementById('status');
+    el.className = cls; el.innerHTML = msg;
+  };
+  paypal.Buttons({
+    createOrder: async () => {
+      status('info', 'Creating order…');
+      const resp = await fetch('/api/checkout', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          currency: document.getElementById('currency').value,
+          value: document.getElementById('amount').value,
+          description: document.getElementById('desc').value,
+        }),
+      });
+      if (!resp.ok) throw new Error('order creation failed: ' + resp.status);
+      const data = await resp.json();
+      return data.order_id;
+    },
+    onApprove: async (data) => {
+      status('info', 'Capturing payment…');
+      const resp = await fetch('/api/checkout/capture', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({order_id: data.orderID}),
+      });
+      if (!resp.ok) { status('err', 'Capture failed — check server logs.'); return; }
+      status('ok', '✓ Payment captured. The compliance agent has it from here — watch the ledger update live.');
+    },
+    onError: (err) => status('err', 'PayPal error: ' + err),
+  }).render('#paypal-buttons');
+</script>
+</body>
+</html>

@@ -30,6 +30,10 @@ pub struct AppState {
     pub store: Option<PdfStore>,
     /// NL→filter parser for the dashboard search bar (None without an LLM key).
     pub query_parser: Option<autofirc_ai::query::QueryParser>,
+    /// PayPal REST client for the sandbox checkout demo.
+    pub paypal: autofirc_paypal::client::PayPalClient,
+    /// Public client id injected into the checkout page's JS SDK tag.
+    pub paypal_client_id: String,
     /// Test hook: when set, skips cert fetch and uses this key directly.
     pub pinned_webhook_key: Option<rsa::RsaPublicKey>,
 }
@@ -179,6 +183,59 @@ pub async fn nl_query(
     }
 }
 
+/// Sandbox checkout: create a PayPal order for the demo store page.
+#[derive(Debug, serde::Deserialize)]
+pub struct CheckoutRequest {
+    pub currency: String,
+    pub value: String,
+    pub description: String,
+}
+
+pub async fn checkout_create(
+    State(state): State<AppState>,
+    Json(req): Json<CheckoutRequest>,
+) -> impl IntoResponse {
+    if req.value.parse::<f64>().map(|v| v <= 0.0).unwrap_or(true) {
+        return (StatusCode::BAD_REQUEST, "value must be a positive number").into_response();
+    }
+    match state
+        .paypal
+        .create_order(&req.currency, &req.value, &req.description)
+        .await
+    {
+        Ok((order_id, approve_url)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"order_id": order_id, "approve_url": approve_url})),
+        )
+            .into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
+    }
+}
+
+/// Sandbox checkout: capture an approved order. The resulting webhook event
+/// enters the normal compliance pipeline.
+#[derive(Debug, serde::Deserialize)]
+pub struct CaptureRequest {
+    pub order_id: String,
+}
+
+pub async fn checkout_capture(
+    State(state): State<AppState>,
+    Json(req): Json<CaptureRequest>,
+) -> impl IntoResponse {
+    match state.paypal.capture_order(&req.order_id).await {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
+    }
+}
+
+/// Demo store page with the PayPal JS SDK wired to the sandbox client id.
+pub async fn checkout_page(State(state): State<AppState>) -> impl IntoResponse {
+    axum::response::Html(
+        include_str!("../assets/checkout.html").replace("{{CLIENT_ID}}", &state.paypal_client_id),
+    )
+}
+
 /// Presigned download URLs for a row's generated documents.
 pub async fn get_documents(
     State(state): State<AppState>,
@@ -217,7 +274,12 @@ pub fn router(state: AppState) -> Router {
         .route("/api/ledger", get(list_ledger))
         .route("/api/petition", post(authorize_petition))
         .route("/api/query", post(nl_query))
+        .route("/api/checkout", post(checkout_create))
+        .route("/api/checkout/capture", post(checkout_capture))
+        .route("/checkout", get(checkout_page))
         .route("/api/ledger/{id}/documents", get(get_documents))
+        // The dashboard is served from a different origin on Render.
+        .layer(tower_http::cors::CorsLayer::permissive())
         .with_state(state)
 }
 
@@ -251,6 +313,12 @@ mod tests {
             enqueue_reconcile: Arc::new(|_job| Box::pin(async {})),
             store: None,
             query_parser: None,
+            paypal: autofirc_paypal::client::PayPalClient::new(
+                "http://localhost:1",
+                "id",
+                "secret",
+            ),
+            paypal_client_id: "test-client-id".into(),
             pinned_webhook_key: Some(public),
         };
         (state, private, enqueued)

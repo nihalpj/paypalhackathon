@@ -1,0 +1,70 @@
+# Render Blueprint: one click → AutoFIRC server + dashboard.
+# Database, queue, and object storage stay on Supabase/Upstash (free tiers);
+# provide their connection strings as environment variables below.
+services:
+  - type: web
+    name: autofirc-server
+    runtime: rust
+    plan: free
+    buildCommand: cargo build --release -p autofirc-server
+    startCommand: ./target/release/autofirc-server
+    healthCheckPath: /api/ledger
+    envVars:
+      - key: BIND_ADDR
+        value: 0.0.0.0:10000
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OBJECT_STORAGE_ENDPOINT
+        sync: false
+      - key: OBJECT_STORAGE_REGION
+        value: eu-west-1
+      - key: OBJECT_STORAGE_BUCKET
+        sync: false
+      - key: OBJECT_STORAGE_ACCESS_KEY
+        sync: false
+      - key: OBJECT_STORAGE_SECRET_KEY
+        sync: false
+      - key: PAYPAL_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DGFT_BASE_URL
+        sync: false # point at the companion mock-dgft service below (or the real DGFT Open API)
+      - key: ZAPIER_MCP_URL
+        sync: false
+      - key: RUST_LOG
+        value: info
+
+  # Companion mock DGFT so the hosted demo reconciles end-to-end without
+  # IEC whitelisting on the real DGFT Open API.
+  - type: web
+    name: autofirc-mock-dgft
+    runtime: rust
+    plan: free
+    buildCommand: cargo build --release -p autofirc-dgft
+    startCommand: ./target/release/mock-dgft
+    envVars:
+      - key: MOCK_DGFT_ADDR
+        value: 0.0.0.0:10000
+
+  - type: static
+    name: autofirc-dashboard
+    buildCommand: cd web && npm install && npm run build
+    staticPublishPath: web/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://autofirc-server.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

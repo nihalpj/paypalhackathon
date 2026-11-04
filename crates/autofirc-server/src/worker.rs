@@ -113,6 +113,13 @@ pub async fn process(job: EnrichJob, p: &Pipeline) -> anyhow::Result<()> {
         .context("get capture")?;
     let enrichment = serde_json::json!({ "order": order, "capture": capture });
     crate::db::set_enrichment(&p.pool, &job.event_id, &enrichment, "enriched").await?;
+    crate::db::set_display_fields(
+        &p.pool,
+        &job.event_id,
+        &extract_client_name(&enrichment),
+        extract_inr_paise(&enrichment),
+    )
+    .await?;
 
     // 2. AI classification under regulatory guardrails.
     let Some(classifier) = &p.classifier else {

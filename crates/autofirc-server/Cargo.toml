@@ -30,6 +30,7 @@ sha2 = { version = "0.10", features = ["oid"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 redis = { version = "0.32", features = ["tokio-rustls-comp", "tls-rustls-webpki-roots"] }
 rustls = { version = "0.23", features = ["ring"] }
+tower-http = { version = "0.6", features = ["cors"] }
 rand = "0.8"
 
 [dev-dependencies]

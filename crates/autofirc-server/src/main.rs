@@ -55,6 +55,23 @@ async fn main() -> anyhow::Result<()> {
         });
 
     let pdf_store = autofirc_server::storage::PdfStore::from_env().ok();
+    let paypal_client_id = std::env::var("PAYPAL_CLIENT_ID").unwrap_or_default();
+    // Dev/demo hook: pin a webhook verification key so the simulator can
+    // sign events without PayPal's cert endpoint. Accepts a PEM string or a
+    // path to a PEM file (PKCS#8 private key; public half is derived).
+    let pinned_webhook_key = std::env::var("DEV_WEBHOOK_KEY_PEM").ok().map(|v| {
+        use rsa::pkcs8::DecodePrivateKey;
+        let pem = if v.contains("BEGIN") {
+            v
+        } else {
+            std::fs::read_to_string(&v).expect("read DEV_WEBHOOK_KEY_PEM file")
+        };
+        let private = rsa::RsaPrivateKey::from_pkcs8_pem(&pem).expect("valid dev key PEM");
+        rsa::RsaPublicKey::from(&private)
+    });
+    if pinned_webhook_key.is_some() {
+        tracing::warn!("DEV_WEBHOOK_KEY_PEM set: webhook cert fetch bypassed (demo mode)");
+    }
     let state = AppState {
         pool: pool.clone(),
         paypal_cert_http: reqwest::Client::new(),
@@ -63,7 +80,9 @@ async fn main() -> anyhow::Result<()> {
         enqueue_reconcile,
         store: pdf_store.clone(),
         query_parser: None, // replaced below once the classifier is built
-        pinned_webhook_key: None,
+        paypal: paypal.clone(),
+        paypal_client_id,
+        pinned_webhook_key,
     };
 
     let classifier = match autofirc_ai::provider::classifier_from_env() {

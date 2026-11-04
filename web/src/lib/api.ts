@@ -1,5 +1,8 @@
 import type { DocumentsResponse, LedgerFilter, LedgerRow, PetitionResponse } from '../types'
 
+// Same-origin in dev (Vite proxy); absolute URL from the build env in prod.
+const API = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = ''
@@ -14,17 +17,17 @@ async function json<T>(res: Response): Promise<T> {
 }
 
 export async function fetchLedger(): Promise<LedgerRow[]> {
-  const res = await fetch('/api/ledger')
+  const res = await fetch(`${API}/api/ledger`)
   return json<LedgerRow[]>(res)
 }
 
 export async function fetchDocuments(id: string): Promise<DocumentsResponse> {
-  const res = await fetch(`/api/ledger/${encodeURIComponent(id)}/documents`)
+  const res = await fetch(`${API}/api/ledger/${encodeURIComponent(id)}/documents`)
   return json<DocumentsResponse>(res)
 }
 
 export async function postPetition(eventIds: string[]): Promise<PetitionResponse> {
-  const res = await fetch('/api/petition', {
+  const res = await fetch(`${API}/api/petition`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event_ids: eventIds }),
@@ -37,7 +40,7 @@ export async function postPetition(eventIds: string[]): Promise<PetitionResponse
  * callers fall back to client-side text search.
  */
 export async function postQuery(query: string): Promise<LedgerFilter> {
-  const res = await fetch('/api/query', {
+  const res = await fetch(`${API}/api/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),

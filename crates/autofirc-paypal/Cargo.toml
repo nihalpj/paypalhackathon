@@ -18,6 +18,7 @@ rsa = "0.9"
 x509-parser = "0.16"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 url = "2"
+axum = "0.8"
 
 [dev-dependencies]
 wiremock = "0.6"
