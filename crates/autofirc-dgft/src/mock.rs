@@ -69,7 +69,7 @@ async fn token(
     };
     let _ = seq;
     Json(TokenResponse {
-        access_token: format!("mock-token-{}", &req.client_id),
+        access_token: format!("mock-token-{}", req.client_id),
         expires_in: 3600,
     })
     .into_response()

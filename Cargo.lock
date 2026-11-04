@@ -313,6 +313,7 @@ dependencies = [
  "apalis-redis",
  "autofirc-ai",
  "autofirc-core",
+ "autofirc-dgft",
  "autofirc-paypal",
  "autofirc-pdf",
  "axum",

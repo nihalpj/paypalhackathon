@@ -10,10 +10,12 @@ use axum::{
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use crate::worker::EnrichJob;
+use crate::storage::PdfStore;
+use crate::worker::{EnrichJob, ReconcileJob};
 
 pub type BoxFuture = std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>;
 pub type EnqueueFn = Arc<dyn Fn(EnrichJob) -> BoxFuture + Send + Sync>;
+pub type ReconcileEnqueueFn = Arc<dyn Fn(ReconcileJob) -> BoxFuture + Send + Sync>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -22,6 +24,10 @@ pub struct AppState {
     pub webhook_id: String,
     /// Queue sink: verified worker job payloads.
     pub enqueue: EnqueueFn,
+    /// Queue sink: merchant-authorized reconciliation jobs.
+    pub enqueue_reconcile: ReconcileEnqueueFn,
+    /// Object storage for presigned document URLs (None in offline dev).
+    pub store: Option<PdfStore>,
     /// Test hook: when set, skips cert fetch and uses this key directly.
     pub pinned_webhook_key: Option<rsa::RsaPublicKey>,
 }
@@ -112,10 +118,79 @@ pub async fn list_ledger(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+/// Bulk-authorize bank petitions for staged rows.
+#[derive(Debug, serde::Deserialize)]
+pub struct PetitionRequest {
+    pub event_ids: Vec<String>,
+}
+
+pub async fn authorize_petition(
+    State(state): State<AppState>,
+    Json(req): Json<PetitionRequest>,
+) -> impl IntoResponse {
+    let mut queued = 0usize;
+    let mut skipped = Vec::new();
+    for id in req.event_ids {
+        match crate::db::get_row(&state.pool, &id).await {
+            Ok(Some(row))
+                if row.get("status").and_then(|s| s.as_str())
+                    == Some("compliance_packet_ready") =>
+            {
+                if crate::db::set_status(&state.pool, &id, "petition_authorized")
+                    .await
+                    .is_ok()
+                {
+                    (state.enqueue_reconcile)(ReconcileJob { event_id: id }).await;
+                    queued += 1;
+                }
+            }
+            _ => skipped.push(id),
+        }
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"queued": queued, "skipped": skipped})),
+    )
+}
+
+/// Presigned download URLs for a row's generated documents.
+pub async fn get_documents(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let Some(store) = &state.store else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "object storage not configured",
+        )
+            .into_response();
+    };
+    match crate::db::get_row(&state.pool, &id).await {
+        Ok(Some(row)) => {
+            let mut out = serde_json::Map::new();
+            for (field, name) in [
+                ("invoice_pdf_key", "invoice_url"),
+                ("lut_pdf_key", "lut_url"),
+            ] {
+                if let Some(key) = row.get(field).and_then(|v| v.as_str())
+                    && let Ok(url) = store.signed_url(key, 900).await
+                {
+                    out.insert(name.into(), serde_json::Value::String(url));
+                }
+            }
+            (StatusCode::OK, Json(serde_json::Value::Object(out))).into_response()
+        }
+        Ok(None) => (StatusCode::NOT_FOUND, "row not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/webhooks/paypal", post(paypal_webhook))
         .route("/api/ledger", get(list_ledger))
+        .route("/api/petition", post(authorize_petition))
+        .route("/api/ledger/{id}/documents", get(get_documents))
         .with_state(state)
 }
 
@@ -146,6 +221,8 @@ mod tests {
                     enq.lock().unwrap().push(job.event_id);
                 })
             }),
+            enqueue_reconcile: Arc::new(|_job| Box::pin(async {})),
+            store: None,
             pinned_webhook_key: Some(public),
         };
         (state, private, enqueued)

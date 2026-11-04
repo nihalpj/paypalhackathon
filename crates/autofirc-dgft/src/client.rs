@@ -1,6 +1,5 @@
 use crate::crypto;
 use crate::types::*;
-use anyhow::Context;
 
 /// DGFT Open API client (production-faithful; demo points it at the mock).
 #[derive(Clone)]
@@ -29,6 +28,10 @@ impl DgftClient {
             client_secret: client_secret.to_owned(),
             signing_key,
         }
+    }
+
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 
     /// PBKDF2 credential handshake → bearer token.
@@ -100,7 +103,7 @@ impl DgftClient {
                     &irm.remittance_date,
                     "%Y-%m-%d",
                 )
-                .unwrap_or_else(|_| chrono::NaiveDate::MIN),
+                .unwrap_or(chrono::NaiveDate::MIN),
             };
             for group in &mut groups {
                 let first = &group[0];

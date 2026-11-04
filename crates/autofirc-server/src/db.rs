@@ -111,6 +111,47 @@ pub async fn set_documents(
     Ok(())
 }
 
+/// Fetch one row as JSON (None when missing).
+pub async fn get_row(pool: &PgPool, id: &str) -> anyhow::Result<Option<serde_json::Value>> {
+    let row = sqlx::query_scalar::<_, serde_json::Value>(
+        "SELECT to_jsonb(l) FROM ledger l WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
+pub async fn set_status(pool: &PgPool, id: &str, status: &str) -> anyhow::Result<()> {
+    sqlx::query("UPDATE ledger SET status = $2, updated_at = now() WHERE id = $1")
+        .bind(id)
+        .bind(status)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn set_ebrc(pool: &PgPool, id: &str, ebrc_number: &str) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE ledger SET ebrc_number = $2, status = 'fully_reconciled', updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(ebrc_number)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_by_status(pool: &PgPool, status: &str) -> anyhow::Result<Vec<serde_json::Value>> {
+    let rows = sqlx::query_scalar::<_, serde_json::Value>(
+        "SELECT to_jsonb(l) FROM ledger l WHERE status = $1 ORDER BY created_at",
+    )
+    .bind(status)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
 pub async fn list_ledger(pool: &PgPool) -> anyhow::Result<Vec<serde_json::Value>> {
     let rows = sqlx::query_scalar::<_, serde_json::Value>(
         "SELECT to_jsonb(l) FROM ledger l ORDER BY created_at DESC",

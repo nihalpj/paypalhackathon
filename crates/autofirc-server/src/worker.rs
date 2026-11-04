@@ -237,3 +237,173 @@ mod tests {
         assert_eq!(extract_foreign_amount(&e), " 0.00");
     }
 }
+
+// ---------- Phase 4: bank petition + DGFT reconciliation ----------
+
+use autofirc_dgft::client::DgftClient;
+use autofirc_dgft::types::{EbrcRequest, IrmDto};
+
+/// Job enqueued when the merchant authorizes a bank petition for a row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReconcileJob {
+    pub event_id: String,
+}
+
+#[derive(Clone)]
+pub struct ReconcilePipeline {
+    pub pool: PgPool,
+    pub store: Option<PdfStore>,
+    pub dispatcher: crate::actions::ActionDispatcher,
+    pub dgft: Option<DgftClient>,
+    pub iec: String,
+    pub bank_officer_email: String,
+}
+
+impl ReconcilePipeline {
+    pub fn from_env(pool: PgPool, store: Option<PdfStore>) -> Self {
+        let dgft = std::env::var("DGFT_BASE_URL").ok().map(|base| {
+            let key_pem = std::env::var("DGFT_SIGNING_KEY_PEM").unwrap_or_default();
+            let signing_key = if key_pem.is_empty() {
+                let mut rng = rand::thread_rng();
+                rsa::RsaPrivateKey::new(&mut rng, 2048).expect("demo signing key")
+            } else {
+                use rsa::pkcs8::DecodePrivateKey;
+                rsa::RsaPrivateKey::from_pkcs8_pem(&key_pem).expect("valid DGFT_SIGNING_KEY_PEM")
+            };
+            DgftClient::new(
+                &base,
+                &std::env::var("DGFT_API_KEY").unwrap_or_else(|_| "demo".into()),
+                &std::env::var("DGFT_CLIENT_ID").unwrap_or_else(|_| "demo".into()),
+                &std::env::var("DGFT_CLIENT_SECRET").unwrap_or_else(|_| "demo".into()),
+                signing_key,
+            )
+        });
+        Self {
+            pool,
+            store,
+            dispatcher: crate::actions::ActionDispatcher::from_env(),
+            dgft,
+            iec: std::env::var("MERCHANT_IEC").unwrap_or_else(|_| "0123456789".into()),
+            bank_officer_email: std::env::var("BANK_OFFICER_EMAIL")
+                .unwrap_or_else(|_| "trade.finance@bank.example".into()),
+        }
+    }
+}
+
+fn jstr<'a>(row: &'a serde_json::Value, key: &str) -> &'a str {
+    row.get(key).and_then(|v| v.as_str()).unwrap_or("")
+}
+
+/// Petition the bank for one row, then run a reconciliation pass over all
+/// bank-petitioned rows against the DGFT IRM repository.
+pub async fn reconcile(job: ReconcileJob, p: &ReconcilePipeline) -> anyhow::Result<()> {
+    let row = crate::db::get_row(&p.pool, &job.event_id)
+        .await?
+        .with_context(|| format!("row {} not found", job.event_id))?;
+
+    // 1. Dispatch the compliance packet to the bank officer.
+    let store = p.store.as_ref().context("object storage required")?;
+    let invoice_key = jstr(&row, "invoice_pdf_key").to_owned();
+    let lut_key = jstr(&row, "lut_pdf_key").to_owned();
+    let invoice_url = store.signed_url(&invoice_key, 900).await?;
+    let lut_url = store.signed_url(&lut_key, 900).await?;
+    p.dispatcher
+        .dispatch_bank_petition(&crate::actions::BankPetition {
+            event_id: job.event_id.clone(),
+            invoice_number: jstr(&row, "invoice_number").to_owned(),
+            invoice_pdf_url: invoice_url,
+            lut_pdf_url: lut_url,
+            fira_reference: jstr(&row, "capture_id").to_owned(),
+            bank_officer_email: p.bank_officer_email.clone(),
+        })
+        .await?;
+    crate::db::set_status(&p.pool, &job.event_id, "bank_petitioned").await?;
+
+    // 2. Simulate the bank transmitting an IRM to DGFT (in production the
+    //    bank does this; against the mock we seed it ourselves).
+    if let Some(dgft) = &p.dgft {
+        let token = dgft.access_token().await?;
+        let foreign =
+            extract_foreign_amount(row.get("enrichment").unwrap_or(&serde_json::Value::Null));
+        let (ccy, amt) = foreign.split_once(' ').unwrap_or(("USD", "0.00"));
+        let remitter =
+            extract_client_name(row.get("enrichment").unwrap_or(&serde_json::Value::Null));
+        seed_irm(
+            dgft.base_url(),
+            IrmDto {
+                irm_number: format!("IRM-{}", jstr(&row, "capture_id")),
+                bank_name: "Demo AD Bank".into(),
+                account_number: "001".into(),
+                currency: ccy.to_owned(),
+                amount: amt.to_owned(),
+                remittance_date: chrono::Utc::now().date_naive().to_string(),
+                remitter_name: remitter,
+            },
+        )
+        .await?;
+
+        // 3. Reconciliation pass: match pending IRMs to bank-petitioned rows.
+        let irms = dgft.fetch_irms(&token, &p.iec).await?;
+        let pending = crate::db::list_by_status(&p.pool, "bank_petitioned").await?;
+        for row in pending {
+            let capture = jstr(&row, "capture_id");
+            let irm_number = format!("IRM-{capture}");
+            if !irms.iter().any(|i| i.irm_number == irm_number) {
+                continue;
+            }
+            let resp = dgft
+                .submit_ebrc(
+                    &token,
+                    EbrcRequest {
+                        iec: p.iec.clone(),
+                        irm_numbers: vec![irm_number],
+                        invoice_number: jstr(&row, "invoice_number").to_owned(),
+                        invoice_date: jstr(&row, "invoice_date").to_owned(),
+                        invoice_value_inr: format!(
+                            "{:.2}",
+                            row.get("amount_inr_paise")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0) as f64
+                                / 100.0
+                        ),
+                        gstin: p.iec_merchant_gstin(),
+                        sac_code: jstr(&row, "sac_code").to_owned(),
+                        mode_of_export: row
+                            .get("mode_of_export")
+                            .and_then(|v| v.as_i64())
+                            .unwrap_or(1) as u8,
+                        purpose_code: jstr(&row, "purpose_code").to_owned(),
+                        signature: String::new(),
+                    },
+                )
+                .await?;
+            crate::db::set_ebrc(&p.pool, jstr(&row, "id"), &resp.ebrc_number).await?;
+            p.dispatcher
+                .alert(&crate::actions::MerchantAlert {
+                    kind: "reconciled".into(),
+                    event_id: jstr(&row, "id").to_owned(),
+                    detail: format!("eBRC {} issued", resp.ebrc_number),
+                })
+                .await?;
+            tracing::info!(event_id = %jstr(&row, "id"), ebrc = %resp.ebrc_number, "fully reconciled");
+        }
+    }
+    Ok(())
+}
+
+impl ReconcilePipeline {
+    fn iec_merchant_gstin(&self) -> String {
+        std::env::var("MERCHANT_GSTIN").unwrap_or_else(|_| "29ABCDE1234F1Z5".into())
+    }
+}
+
+/// Seed an IRM at the (mock) DGFT, simulating the bank's transmission.
+async fn seed_irm(dgft_base_url: &str, irm: IrmDto) -> anyhow::Result<()> {
+    reqwest::Client::new()
+        .post(format!("{}/seed-irm", dgft_base_url.trim_end_matches('/')))
+        .json(&irm)
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(())
+}

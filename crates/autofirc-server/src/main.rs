@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&database_url).await?;
     autofirc_server::db::migrate(&pool).await?;
 
-    let conn = apalis_redis::connect(redis_url).await?;
+    let conn = apalis_redis::connect(redis_url.clone()).await?;
     let storage = RedisStorage::new(conn);
 
     let paypal = autofirc_paypal::client::PayPalClient::new(
@@ -42,11 +42,26 @@ async fn main() -> anyhow::Result<()> {
         })
     });
 
+    let reconcile_storage = RedisStorage::new(apalis_redis::connect(redis_url).await?);
+    let push_reconcile = reconcile_storage.clone();
+    let enqueue_reconcile: routes::ReconcileEnqueueFn =
+        Arc::new(move |job: worker::ReconcileJob| {
+            let mut storage = push_reconcile.clone();
+            Box::pin(async move {
+                if let Err(e) = Storage::push(&mut storage, job).await {
+                    tracing::error!(error = %e, "failed to enqueue reconcile job");
+                }
+            })
+        });
+
+    let pdf_store = autofirc_server::storage::PdfStore::from_env().ok();
     let state = AppState {
         pool: pool.clone(),
         paypal_cert_http: reqwest::Client::new(),
         webhook_id,
         enqueue,
+        enqueue_reconcile,
+        store: pdf_store.clone(),
         pinned_webhook_key: None,
     };
 
@@ -57,14 +72,14 @@ async fn main() -> anyhow::Result<()> {
             None
         }
     };
-    let store = autofirc_server::storage::PdfStore::from_env().ok();
     let pipeline = worker::Pipeline {
         paypal,
         pool: pool.clone(),
         classifier,
-        store,
+        store: pdf_store.clone(),
         merchant: worker::MerchantProfile::from_env(),
     };
+    let reconcile_pipeline = worker::ReconcilePipeline::from_env(pool.clone(), pdf_store.clone());
 
     tokio::spawn(async move {
         Monitor::new()
@@ -74,6 +89,14 @@ async fn main() -> anyhow::Result<()> {
                     async move { worker::process(job, &pipeline).await }
                 },
             ))
+            .register(
+                WorkerBuilder::new("reconcile")
+                    .backend(reconcile_storage)
+                    .build_fn(move |job: worker::ReconcileJob| {
+                        let pipeline = reconcile_pipeline.clone();
+                        async move { worker::reconcile(job, &pipeline).await }
+                    }),
+            )
             .run()
             .await
             .expect("worker monitor");
