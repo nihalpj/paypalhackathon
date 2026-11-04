@@ -1,0 +1,24 @@
+[package]
+name = "autofirc-paypal"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+crc32fast = "1"
+base64 = "0.22"
+sha2 = { version = "0.10", features = ["oid"] }
+rsa = "0.9"
+x509-parser = "0.16"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+url = "2"
+
+[dev-dependencies]
+wiremock = "0.6"
+rand = "0.8"
