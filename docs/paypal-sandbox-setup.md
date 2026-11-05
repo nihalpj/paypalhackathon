@@ -71,9 +71,12 @@ The pipeline is driven by `PAYMENT.CAPTURE.COMPLETED` webhooks.
 ## 4. PayPal MCP server (agentic commerce)
 
 PayPal's official MCP server exposes orders, invoices, subscriptions, and
-disputes as agent tools. This repo ships a ready config (`.mcp.json` at the
-root) pointing at the sandbox endpoint — open it with any MCP client
-(Claude Code, Kimi, Cursor) and complete the PayPal login/consent flow:
+disputes as agent tools. This repo ships a ready config (`.mcp.json.example`
+at the root — rename it to `.mcp.json` to activate) pointing at the sandbox
+endpoint — open it with any MCP client (Claude Code, Kimi, Cursor) and
+complete the PayPal login/consent flow. Note: activating it makes the client
+open PayPal's OAuth consent page in your browser on every session until you
+complete the login once — rename it back if you don't want that.
 
 ```
 npx mcp-remote https://mcp.sandbox.paypal.com/sse

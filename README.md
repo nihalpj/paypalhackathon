@@ -105,11 +105,11 @@ PayPal MCP server). Short version:
 
 ### Agentic commerce: PayPal MCP
 
-The repo ships `.mcp.json` pointing any MCP client (Claude Code, Kimi,
-Cursor) at PayPal's official sandbox MCP server
-(`https://mcp.sandbox.paypal.com/sse`). Combined with AutoFIRC's own CLI
-skill, an agent can drive both sides of the money: PayPal payment state via
-MCP tools, compliance state via `autofirc`.
+The repo ships `.mcp.json.example` (rename to `.mcp.json` to activate) pointing
+any MCP client (Claude Code, Kimi, Cursor) at PayPal's official sandbox MCP
+server (`https://mcp.sandbox.paypal.com/sse`). Combined with AutoFIRC's own
+CLI skill, an agent can drive both sides of the money: PayPal payment state
+via MCP tools, compliance state via `autofirc`.
 
 ## CLI + agent skill
 
