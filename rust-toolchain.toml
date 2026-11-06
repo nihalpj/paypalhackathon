@@ -1,3 +1,6 @@
 [toolchain]
-channel = "nightly"
+# Pinned: apalis-redis 0.7.4 fails to compile on newer toolchains due to
+# the type-inference change in rust-lang/rust#148922. This is the exact
+# nightly the workspace is verified against.
+channel = "nightly-2026-06-15"
 components = ["rustfmt", "clippy"]
