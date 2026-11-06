@@ -41,7 +41,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: DGFT_BASE_URL
-        sync: false # point at the companion mock-dgft service below (or the real DGFT Open API)
+        value: https://autofirc-mock-dgft.onrender.com # companion mock below; swap for the real DGFT Open API in production
       - key: ZAPIER_MCP_URL
         sync: false
       - key: RUST_LOG
