@@ -7,13 +7,49 @@ pub type BoxFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + 
 
 /// Build a [`Classifier`] from environment configuration.
 ///
-/// - `AI_PROVIDER`: `gemini` (default) | `openai` | `anthropic` | `openrouter` | `groq`
+/// - `AI_PROVIDER`: `gemini` (default) | `nebius` | `openai` | `anthropic` | `openrouter` | `groq` | `offline`
 /// - `AI_MODEL`: provider-specific model id (defaults per provider below)
-/// - The provider's API key env var (`GEMINI_API_KEY`, `OPENAI_API_KEY`, ...)
+/// - The provider's API key env var (`GEMINI_API_KEY`, `NEBIUS_API_KEY`, ...)
 pub fn classifier_from_env() -> anyhow::Result<Classifier> {
     let provider = std::env::var("AI_PROVIDER").unwrap_or_else(|_| "gemini".into());
     let model_id = std::env::var("AI_MODEL").ok();
     match provider.as_str() {
+        "nebius" => {
+            // Nebius Token Factory: plain OpenAI-style chat completions,
+            // called directly (rig 0.46's OpenAI dialect prefers the
+            // Responses API, which Token Factory does not serve).
+            let api_key = std::env::var("NEBIUS_API_KEY").context("NEBIUS_API_KEY")?;
+            let base_url = std::env::var("NEBIUS_BASE_URL").unwrap_or_else(|_| {
+                "https://api.tokenfactory.eu-north1.nebius.com/v1".into()
+            });
+            let model = model_id
+                .unwrap_or_else(|| "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B".into());
+            let http = reqwest::Client::new();
+            Ok(Classifier::new(Arc::new(move |prompt, _schema| {
+                let http = http.clone();
+                let api_key = api_key.clone();
+                let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+                let model = model.clone();
+                Box::pin(async move {
+                    let resp = http
+                        .post(url)
+                        .bearer_auth(api_key)
+                        .json(&serde_json::json!({
+                            "model": model,
+                            "temperature": 0.1,
+                            "messages": [{"role": "user", "content": prompt}],
+                        }))
+                        .send()
+                        .await?
+                        .error_for_status()?;
+                    let body: serde_json::Value = resp.json().await?;
+                    let text = body["choices"][0]["message"]["content"]
+                        .as_str()
+                        .unwrap_or_default();
+                    Ok(strip_code_fences(text))
+                })
+            })))
+        }
         "openai" => {
             use rig::providers::openai;
             let model = openai::OpenAI::from_env()
@@ -67,6 +103,17 @@ pub fn classifier_from_env() -> anyhow::Result<Classifier> {
             })))
         }
     }
+}
+
+/// Models sometimes wrap JSON in markdown fences; `validate` needs bare JSON.
+fn strip_code_fences(s: &str) -> String {
+    let t = s.trim();
+    let t = t
+        .strip_prefix("```json")
+        .or_else(|| t.strip_prefix("```"))
+        .unwrap_or(t);
+    let t = t.strip_suffix("```").unwrap_or(t);
+    t.trim().to_owned()
 }
 
 /// Deterministic offline completion: valid structured output derived from
@@ -134,6 +181,44 @@ mod tests {
             .await
             .unwrap();
         assert!(out.needs_review); // 70 < 85 threshold
+    }
+
+    #[test]
+    fn strip_code_fences_unwraps_markdown() {
+        assert_eq!(strip_code_fences("{\"a\":1}"), "{\"a\":1}");
+        assert_eq!(strip_code_fences("```json\n{\"a\":1}\n```"), "{\"a\":1}");
+        assert_eq!(strip_code_fences("```\n{\"a\":1}\n```"), "{\"a\":1}");
+    }
+
+    #[tokio::test]
+    async fn nebius_branch_posts_chat_completion() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "choices": [{"message": {"content": "```json\n{\"purpose_code\":\"P0802\",\"mode_of_export\":1,\"sac_code\":\"998314\",\"confidence_score\":95,\"reasoning\":\"software consulting\"}\n```"}}]
+            })))
+            .mount(&server)
+            .await;
+        unsafe {
+            std::env::set_var("AI_PROVIDER", "nebius");
+            std::env::set_var("NEBIUS_API_KEY", "test-key");
+            std::env::set_var("NEBIUS_BASE_URL", server.uri());
+        }
+        let classifier = classifier_from_env().unwrap();
+        let out = classifier
+            .classify(&serde_json::json!({"order": {"purchase_units": [{"description": "Remote software consulting"}]}}))
+            .await
+            .unwrap();
+        assert!(!out.needs_review);
+        assert_eq!(out.classification.purpose_code, "P0802");
+        unsafe {
+            std::env::remove_var("AI_PROVIDER");
+            std::env::remove_var("NEBIUS_API_KEY");
+            std::env::remove_var("NEBIUS_BASE_URL");
+        }
     }
 
     #[test]

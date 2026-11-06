@@ -35,7 +35,9 @@ services:
       - key: PAYPAL_WEBHOOK_ID
         sync: false
       - key: AI_PROVIDER
-        value: gemini
+        value: nebius
+      - key: NEBIUS_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: DGFT_BASE_URL
