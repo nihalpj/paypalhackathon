@@ -57,7 +57,8 @@ services:
       - key: MOCK_DGFT_ADDR
         value: 0.0.0.0:10000
 
-  - type: static
+  - type: web
+    env: static
     name: autofirc-dashboard
     buildCommand: cd web && npm install && npm run build
     staticPublishPath: web/dist
