@@ -36,7 +36,10 @@ pub fn classifier_from_env() -> anyhow::Result<Classifier> {
                         .bearer_auth(api_key)
                         .json(&serde_json::json!({
                             "model": model,
-                            "temperature": 0.1,
+                            // temperature 0: classification must be
+                            // deterministic — identical transactions must
+                            // classify identically.
+                            "temperature": 0.0,
                             "messages": [{"role": "user", "content": prompt}],
                         }))
                         .send()

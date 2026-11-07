@@ -44,6 +44,13 @@ pub fn looks_like_physical_goods(enrichment: &serde_json::Value) -> bool {
         || haystack.contains("\"category\":\"physical_goods\"")
 }
 
+/// RBI FETERS purpose codes in the P01xx family are all physical-goods
+/// export codes (P0101-P0109). They are statutory offences when applied to
+/// service transactions.
+pub fn is_goods_purpose_code(code: &str) -> bool {
+    code.starts_with("P01")
+}
+
 /// Parse + validate raw model output against the deterministic guardrails.
 /// This function never calls the network and is the safety net of the system:
 /// even a jailbroken or hallucinating model cannot push P0103 onto a service
@@ -61,13 +68,15 @@ pub fn validate(
     let mut needs_review = classification.confidence_score < CONFIDENCE_THRESHOLD;
     let mut backstop_note = None;
 
-    if classification.purpose_code == "P0103" && !looks_like_physical_goods(enrichment) {
+    if is_goods_purpose_code(&classification.purpose_code)
+        && !looks_like_physical_goods(enrichment)
+    {
         needs_review = true;
-        backstop_note = Some(
-            "backstop: model proposed P0103 on a transaction with no physical-goods signals; \
-             routed to manual review per RBI/EDPMS guardrail"
-                .to_owned(),
-        );
+        backstop_note = Some(format!(
+            "backstop: model proposed goods code {} on a transaction with no physical-goods \
+             signals; routed to manual review per RBI/EDPMS guardrail",
+            classification.purpose_code
+        ));
     }
 
     Ok(ClassifiedTransaction {
@@ -131,6 +140,32 @@ mod tests {
             "order": {"purchase_units": [{"description": "Remote software consulting, Oct 2026"}]},
             "capture": {"amount": {"currency_code": "USD", "value": "500.00"}}
         })
+    }
+
+    #[test]
+    fn any_goods_code_on_services_is_caught_by_backstop() {
+        // The live failure mode: identical "Remote software consulting" input
+        // classified as P0802 once and P0102 another time.
+        for code in ["P0101", "P0102", "P0103", "P0104", "P0108"] {
+            let raw = format!(
+                r#"{{"purpose_code":"{code}","mode_of_export":1,"sac_code":"998314","confidence_score":99,"reasoning":"hallucinated"}}"#
+            );
+            let out = validate(&raw, &service_enrichment()).unwrap();
+            assert!(out.needs_review, "{code} on services must be flagged");
+            assert!(
+                out.backstop_note.as_ref().unwrap().contains(code),
+                "backstop note must name the offending code {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn goods_code_allowed_with_physical_goods_signals() {
+        let goods =
+            json!({"order": {"purchase_units": [{"shipping": {}, "shipping_address": {}}]}});
+        let raw = r#"{"purpose_code":"P0102","mode_of_export":1,"sac_code":"0","confidence_score":95,"reasoning":"goods export"}"#;
+        let out = validate(raw, &goods).unwrap();
+        assert!(!out.needs_review);
     }
 
     #[test]
