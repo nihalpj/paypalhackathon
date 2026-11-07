@@ -1,7 +1,15 @@
 # Render Blueprint: one click → AutoFIRC server + dashboard.
-# Database, queue, and object storage stay on Supabase/Upstash (free tiers);
-# provide their connection strings as environment variables below.
+# Postgres and Key Value (Valkey 8) are provisioned by this blueprint;
+# object storage stays on Supabase (free tier) — provide its connection
+# strings as environment variables below.
 services:
+  # Job queue (apalis). Upstash's free tier caps requests/month and apalis
+  # polling exhausts it, so the queue lives on Render Key Value instead.
+  - type: keyvalue
+    name: autofirc-kv
+    plan: free
+    maxmemoryPolicy: noeviction
+
   - type: web
     name: autofirc-server
     runtime: rust
@@ -15,7 +23,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: keyvalue
+          name: autofirc-kv
+          property: connectionString
       - key: OBJECT_STORAGE_ENDPOINT
         sync: false
       - key: OBJECT_STORAGE_REGION
