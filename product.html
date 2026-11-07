@@ -100,6 +100,46 @@
     tracking, EDPMS closure, DGFT self-certification, LUT accountability. Big exporters hire compliance teams.
     Freelancers get a government portal, a 9-month clock, and penalties that start at 3× the payment. AutoFIRC
     exists because the obligation scales down to one person, but the tooling never did.</div>
+
+    <h3 style="margin-top:32px">The four obligations behind every payment</h3>
+    <div class="grid cols2">
+      <div class="card"><h3>1 · FEMA realization tracking</h3>
+        <p>The Foreign Exchange Management Act obliges every export earning to be <strong>realized and
+        repatriated</strong> to India within a fixed window — 9 months under FEMA 23(R)/2026-RB (12 for
+        INR/Vostro invoicing). From the moment your invoice exists, the clock runs: the system tracks whether
+        your $500 actually shows up in India before the deadline. Miss it and penalties reach 3× the sum
+        involved plus ₹5,000 per day of continuing default.</p></div>
+      <div class="card"><h3>2 · EDPMS closure</h3>
+        <p>RBI's Export Data Processing and Monitoring System performs that tracking. Every export invoice
+        opens an entry — "this exporter owes India $500 of realized forex" — and it does <em>not</em> close when
+        the money arrives. It closes only when the inward remittance is formally matched to the export (via the
+        eBRC) and your AD bank knocks off the entry. Unclosed entries age; enough of them lands you on the RBI
+        <strong>Caution List</strong>, and banks stop processing your export collections entirely.</p></div>
+      <div class="card"><h3>3 · DGFT self-certification</h3>
+        <p>Since Trade Notice 33/2023-24 the matching burden sits with you. Your bank pushes the remittance to
+        the DGFT portal as an IRM; you must log in, match it to your invoice, and file a signed declaration —
+        purpose code, GATS Mode of Export, SAC code, GST invoice details. That declaration generates the
+        <strong>eBRC</strong>, the closing document. "Self-certification" means the legal liability is yours:
+        a wrong code is a FEMA violation, not a typo.</p></div>
+      <div class="card"><h3>4 · LUT accountability</h3>
+        <p>A Letter of Undertaking (GST Rule 96A) lets you export at 0% GST without paying tax upfront — in
+        exchange for a promise: <em>"I will realize this payment in foreign exchange within the allowed
+        period."</em> The proof of that promise is the eBRC. If you can't produce it, the zero-rating
+        collapses retroactively: the GST you skipped becomes payable, <strong>plus 18% interest</strong>.</p></div>
+    </div>
+
+    <h3 style="margin-top:28px">How the four obligations chain together</h3>
+    <ol class="flow">
+      <li><span class="actor a-merchant">Merchant</span> <strong>Invoice issued</strong> — the FEMA realization clock starts (9 months).</li>
+      <li><span class="actor a-paypal">PayPal</span> <strong>Payment arrives</strong> — the bank settles INR and pushes an IRM to the DGFT repository.</li>
+      <li><span class="actor a-dgft">DGFT</span> <strong>Self-certification filed</strong> — IRM matched to the invoice; eBRC number issued.</li>
+      <li><span class="actor a-bank">Bank</span> <strong>eBRC delivered</strong> — the EDPMS entry is closed and the FEMA clock stops.</li>
+      <li><span class="actor a-agent">GST</span> <strong>eBRC on file</strong> — the LUT promise is kept; zero-rating stands, no tax, no 18% interest.</li>
+    </ol>
+    <div class="note">Each stage depends on the one before it, all four obligations sit on the exporter
+    personally, and none are optional — for a $500 freelance invoice exactly as for a crore-sized contract.
+    AutoFIRC's pipeline ends at <code>fully_reconciled</code> with an eBRC number because that is the moment
+    all four obligations are simultaneously discharged.</div>
   </div>
 </section>
 
