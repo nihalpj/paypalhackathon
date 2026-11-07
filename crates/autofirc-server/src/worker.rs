@@ -278,6 +278,47 @@ mod tests {
         assert_eq!(extract_payer_country(&domestic), "IN");
         assert!(!autofirc_core::cross_border::is_cross_border(&domestic));
     }
+
+    #[test]
+    fn portal_mode_parses_env_values() {
+        assert_eq!(parse_portal_mode("api"), PortalMode::Api);
+        assert_eq!(parse_portal_mode("browser"), PortalMode::Browser);
+        assert_eq!(parse_portal_mode("fallback"), PortalMode::Fallback);
+        assert_eq!(parse_portal_mode(""), PortalMode::Fallback);
+        assert_eq!(parse_portal_mode("garbage"), PortalMode::Fallback);
+    }
+
+    #[tokio::test]
+    async fn portal_run_fn_stub_returns_filing_artifacts() {
+        let stub: PortalRunFn = std::sync::Arc::new(|url, filing| {
+            Box::pin(async move {
+                assert!(url.ends_with("/portal"));
+                assert_eq!(filing.irm_numbers, vec!["IRM-1".to_string()]);
+                Ok(autofirc_portal::PortalRun {
+                    session_id: "sess".into(),
+                    status: "ISSUED".into(),
+                    artifacts: vec!["EBRC-2026-0009".into()],
+                    live_view_url: Some("https://live.kernel.test/sess".into()),
+                })
+            })
+        });
+        let filing = autofirc_portal::EbrcFiling {
+            iec: "0123456789".into(),
+            irm_numbers: vec!["IRM-1".into()],
+            invoice_number: "INV/2026-27/0001".into(),
+            invoice_date: "2026-11-06".into(),
+            invoice_value_inr: "41500.00".into(),
+            gstin: "29ABCDE1234F1Z5".into(),
+            sac_code: "998314".into(),
+            mode_of_export: 1,
+            purpose_code: "P0802".into(),
+            invoice_pdf_url: "https://example.test/i.pdf".into(),
+            lut_pdf_url: "https://example.test/l.pdf".into(),
+        };
+        let run = stub("https://dgft.test/portal".into(), filing).await.unwrap();
+        assert_eq!(run.artifacts[0], "EBRC-2026-0009");
+        assert!(run.live_view_url.is_some());
+    }
 }
 
 // ---------- Phase 4: bank petition + DGFT reconciliation ----------
@@ -299,7 +340,47 @@ pub struct ReconcilePipeline {
     pub dgft: Option<DgftClient>,
     pub iec: String,
     pub bank_officer_email: String,
+    /// kernel.sh browser-portal filing; None without KERNEL_API_KEY.
+    pub portal: Option<PortalRunFn>,
+    pub portal_mode: PortalMode,
+    /// Base URL of the DGFT portal UI (defaults to {DGFT_BASE_URL}/portal).
+    pub portal_url: Option<String>,
 }
+
+/// How the reconcile stage files eBRCs: JSON API, kernel.sh browser
+/// automation against the portal UI, or API with browser fallback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PortalMode {
+    Api,
+    Browser,
+    #[default]
+    Fallback,
+}
+
+impl PortalMode {
+    pub fn from_env() -> Self {
+        parse_portal_mode(&std::env::var("DGFT_PORTAL_MODE").unwrap_or_default())
+    }
+}
+
+fn parse_portal_mode(value: &str) -> PortalMode {
+    match value {
+        "api" => PortalMode::Api,
+        "browser" => PortalMode::Browser,
+        _ => PortalMode::Fallback,
+    }
+}
+
+/// Browser-portal filing closure, same idiom as the AI classifier's
+/// completion fn: trivially stubbed in tests, `PortalAgent` in production.
+pub type PortalRunFn = std::sync::Arc<
+    dyn Fn(
+            String,
+            autofirc_portal::EbrcFiling,
+        ) -> autofirc_portal::BoxFuture<anyhow::Result<autofirc_portal::PortalRun>>
+        + Send
+        + Sync,
+>;
 
 impl ReconcilePipeline {
     pub fn from_env(pool: PgPool, store: Option<PdfStore>) -> Self {
@@ -320,6 +401,19 @@ impl ReconcilePipeline {
                 signing_key,
             )
         });
+        let portal: Option<PortalRunFn> =
+            autofirc_portal::PortalAgent::from_env().map(|agent| {
+                std::sync::Arc::new(move |url: String, filing: autofirc_portal::EbrcFiling| {
+                    let agent = agent.clone();
+                    Box::pin(async move { agent.file_ebrc_via_portal(&url, &filing).await })
+                        as autofirc_portal::BoxFuture<_>
+                }) as PortalRunFn
+            });
+        let portal_url = std::env::var("DGFT_PORTAL_URL").ok().or_else(|| {
+            std::env::var("DGFT_BASE_URL")
+                .ok()
+                .map(|b| format!("{}/portal", b.trim_end_matches('/')))
+        });
         Self {
             pool,
             store,
@@ -328,6 +422,9 @@ impl ReconcilePipeline {
             iec: std::env::var("MERCHANT_IEC").unwrap_or_else(|_| "0123456789".into()),
             bank_officer_email: std::env::var("BANK_OFFICER_EMAIL")
                 .unwrap_or_else(|_| "trade.finance@bank.example".into()),
+            portal,
+            portal_mode: PortalMode::from_env(),
+            portal_url,
         }
     }
 }
@@ -384,7 +481,8 @@ pub async fn reconcile(job: ReconcileJob, p: &ReconcilePipeline) -> anyhow::Resu
         )
         .await?;
 
-        // 3. Reconciliation pass: match pending IRMs to bank-petitioned rows.
+        // 3. Reconciliation pass: match pending IRMs to bank-petitioned rows,
+        //    then file via the API, the browser portal, or API-with-fallback.
         let irms = dgft.fetch_irms(&token, &p.iec).await?;
         let pending = crate::db::list_by_status(&p.pool, "bank_petitioned").await?;
         for row in pending {
@@ -393,44 +491,125 @@ pub async fn reconcile(job: ReconcileJob, p: &ReconcilePipeline) -> anyhow::Resu
             if !irms.iter().any(|i| i.irm_number == irm_number) {
                 continue;
             }
-            let resp = dgft
-                .submit_ebrc(
-                    &token,
-                    EbrcRequest {
-                        iec: p.iec.clone(),
-                        irm_numbers: vec![irm_number],
-                        invoice_number: jstr(&row, "invoice_number").to_owned(),
-                        invoice_date: jstr(&row, "invoice_date").to_owned(),
-                        invoice_value_inr: format!(
-                            "{:.2}",
-                            row.get("amount_inr_paise")
-                                .and_then(|v| v.as_i64())
-                                .unwrap_or(0) as f64
-                                / 100.0
-                        ),
-                        gstin: p.iec_merchant_gstin(),
-                        sac_code: jstr(&row, "sac_code").to_owned(),
-                        mode_of_export: row
-                            .get("mode_of_export")
-                            .and_then(|v| v.as_i64())
-                            .unwrap_or(1) as u8,
-                        purpose_code: jstr(&row, "purpose_code").to_owned(),
-                        signature: String::new(),
-                    },
-                )
-                .await?;
-            crate::db::set_ebrc(&p.pool, jstr(&row, "id"), &resp.ebrc_number).await?;
+            let ebrc_number = match p.portal_mode {
+                PortalMode::Api => file_ebrc_api(p, dgft, &token, &row, &irm_number).await?,
+                PortalMode::Browser => file_ebrc_browser(p, &row, &irm_number).await?,
+                PortalMode::Fallback => {
+                    match file_ebrc_api(p, dgft, &token, &row, &irm_number).await {
+                        Ok(n) => n,
+                        Err(e) => {
+                            if p.portal.is_none() {
+                                return Err(e);
+                            }
+                            tracing::warn!(error = %e, event_id = %jstr(&row, "id"),
+                                "DGFT API filing failed; falling back to kernel.sh browser portal");
+                            file_ebrc_browser(p, &row, &irm_number).await?
+                        }
+                    }
+                }
+            };
             p.dispatcher
                 .alert(&crate::actions::MerchantAlert {
                     kind: "reconciled".into(),
                     event_id: jstr(&row, "id").to_owned(),
-                    detail: format!("eBRC {} issued", resp.ebrc_number),
+                    detail: format!("eBRC {ebrc_number} issued"),
                 })
                 .await?;
-            tracing::info!(event_id = %jstr(&row, "id"), ebrc = %resp.ebrc_number, "fully reconciled");
+            tracing::info!(event_id = %jstr(&row, "id"), ebrc = %ebrc_number, "fully reconciled");
         }
     }
     Ok(())
+}
+
+/// File one row through the DGFT JSON API (PBKDF2 token + RSA-signed payload).
+async fn file_ebrc_api(
+    p: &ReconcilePipeline,
+    dgft: &DgftClient,
+    token: &str,
+    row: &serde_json::Value,
+    irm_number: &str,
+) -> anyhow::Result<String> {
+    let resp = dgft
+        .submit_ebrc(
+            token,
+            EbrcRequest {
+                iec: p.iec.clone(),
+                irm_numbers: vec![irm_number.to_owned()],
+                invoice_number: jstr(row, "invoice_number").to_owned(),
+                invoice_date: jstr(row, "invoice_date").to_owned(),
+                invoice_value_inr: format!(
+                    "{:.2}",
+                    row.get("amount_inr_paise")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0) as f64
+                        / 100.0
+                ),
+                gstin: p.iec_merchant_gstin(),
+                sac_code: jstr(row, "sac_code").to_owned(),
+                mode_of_export: row
+                    .get("mode_of_export")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(1) as u8,
+                purpose_code: jstr(row, "purpose_code").to_owned(),
+                signature: String::new(),
+            },
+        )
+        .await?;
+    crate::db::set_ebrc(&p.pool, jstr(row, "id"), &resp.ebrc_number).await?;
+    Ok(resp.ebrc_number)
+}
+
+/// File one row through a kernel.sh cloud browser driving the DGFT portal
+/// UI: login, club the IRM, fill the self-certification form, upload the
+/// invoice + LUT PDFs, scrape the issued eBRC number.
+async fn file_ebrc_browser(
+    p: &ReconcilePipeline,
+    row: &serde_json::Value,
+    irm_number: &str,
+) -> anyhow::Result<String> {
+    let portal = p
+        .portal
+        .as_ref()
+        .context("browser mode requires KERNEL_API_KEY")?;
+    let portal_url = p
+        .portal_url
+        .clone()
+        .context("browser mode requires DGFT_PORTAL_URL or DGFT_BASE_URL")?;
+    let store = p.store.as_ref().context("object storage required")?;
+    let invoice_url = store.signed_url(jstr(row, "invoice_pdf_key"), 900).await?;
+    let lut_url = store.signed_url(jstr(row, "lut_pdf_key"), 900).await?;
+    let filing = autofirc_portal::EbrcFiling {
+        iec: p.iec.clone(),
+        irm_numbers: vec![irm_number.to_owned()],
+        invoice_number: jstr(row, "invoice_number").to_owned(),
+        invoice_date: jstr(row, "invoice_date").to_owned(),
+        invoice_value_inr: format!(
+            "{:.2}",
+            row.get("amount_inr_paise")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as f64
+                / 100.0
+        ),
+        gstin: p.iec_merchant_gstin(),
+        sac_code: jstr(row, "sac_code").to_owned(),
+        mode_of_export: row
+            .get("mode_of_export")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(1) as u8,
+        purpose_code: jstr(row, "purpose_code").to_owned(),
+        invoice_pdf_url: invoice_url,
+        lut_pdf_url: lut_url,
+    };
+    let run = portal(portal_url, filing).await?;
+    let ebrc_number = run
+        .artifacts
+        .into_iter()
+        .next()
+        .context("portal run returned no eBRC artifact")?;
+    crate::db::set_ebrc(&p.pool, jstr(row, "id"), &ebrc_number).await?;
+    crate::db::set_portal_artifacts(&p.pool, jstr(row, "id"), run.live_view_url.as_deref())
+        .await?;
+    Ok(ebrc_number)
 }
 
 impl ReconcilePipeline {

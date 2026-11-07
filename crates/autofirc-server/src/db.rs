@@ -129,6 +129,20 @@ pub async fn set_documents(
     Ok(())
 }
 
+/// Record the kernel.sh live-view/replay URL from a browser-portal filing.
+pub async fn set_portal_artifacts(
+    pool: &PgPool,
+    id: &str,
+    live_view_url: Option<&str>,
+) -> anyhow::Result<()> {
+    sqlx::query("UPDATE ledger SET portal_live_view_url = $2, updated_at = now() WHERE id = $1")
+        .bind(id)
+        .bind(live_view_url)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 /// Fetch one row as JSON (None when missing).
 pub async fn get_row(pool: &PgPool, id: &str) -> anyhow::Result<Option<serde_json::Value>> {
     let row = sqlx::query_scalar::<_, serde_json::Value>(

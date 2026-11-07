@@ -5,4 +5,5 @@
 pub mod client;
 pub mod crypto;
 pub mod mock;
+pub mod portal;
 pub mod types;

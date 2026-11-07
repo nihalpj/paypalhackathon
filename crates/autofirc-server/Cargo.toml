@@ -10,6 +10,7 @@ autofirc-paypal = { path = "../autofirc-paypal" }
 autofirc-ai = { path = "../autofirc-ai" }
 autofirc-pdf = { path = "../autofirc-pdf" }
 autofirc-dgft = { path = "../autofirc-dgft" }
+autofirc-portal = { path = "../autofirc-portal" }
 s3 = { package = "rust-s3", version = "0.38", default-features = false, features = ["tokio-rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true

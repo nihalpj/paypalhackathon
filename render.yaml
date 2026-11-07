@@ -42,6 +42,10 @@ services:
         sync: false
       - key: DGFT_BASE_URL
         value: https://autofirc-mock-dgft.onrender.com # companion mock below; swap for the real DGFT Open API in production
+      - key: DGFT_PORTAL_MODE
+        value: browser # file eBRCs via the kernel.sh cloud browser driving the mock portal UI
+      - key: KERNEL_API_KEY
+        sync: false
       - key: ZAPIER_MCP_URL
         sync: false
       - key: RUST_LOG

@@ -193,7 +193,7 @@
         <ul class="tight">
           <li>Production-faithful <strong>DGFT Open API client</strong>: API key + PBKDF2-hashed client secret (65,536 iterations), every eBRC payload RSA-SHA256 signed — portal steps 2–6 become one automated pass per payment</li>
           <li>Clubbing rules encoded deterministically in <code>autofirc-core</code> — auditable, never improvised by the LLM</li>
-          <li>Fallback <strong>KERNEL cloud-browser agent</strong> drives the real DGFT portal UI with a 24fps live view and full replay for auditors</li>
+          <li>Fallback <strong>KERNEL cloud-browser agent</strong> drives the portal UI itself — login, clubbing, form fill, invoice/LUT upload — with a 24fps live view and full replay for auditors</li>
           <li>This demo runs against a high-fidelity <strong>mock DGFT on Render</strong> — the real API requires an IEC, IP whitelisting and FIU registration that can't be obtained during a hackathon; the request/response contract is identical</li>
         </ul></div>
     </div>
@@ -221,8 +221,9 @@
         rules, and self-certifies the eBRC — or drives the DGFT portal itself through a KERNEL browser agent.</p></div>
     </div>
     <div class="note"><strong>Demo note:</strong> the real DGFT Open API requires an IEC, IP whitelisting, and FIU
-    registration — unobtainable in a hackathon. AutoFIRC ships a production-faithful client plus a high-fidelity
-    mock DGFT server, and a KERNEL cloud-browser agent that operates the real portal UI with live session replay.</div>
+    registration — unobtainable in a hackathon. AutoFIRC ships a production-faithful client, a high-fidelity
+    mock DGFT server <em>with a browser twin of the dgft.gov.in eBRC portal</em>, and a KERNEL cloud-browser
+    agent that files through that portal UI — login, IRM clubbing, invoice/LUT upload — with live session replay.</div>
   </div>
 </section>
 
@@ -244,7 +245,7 @@
       <li><span class="actor a-dgft">DGFT</span> AutoFIRC authenticates (API key + PBKDF2-hashed client secret, 65,536 iterations) and fetches pending IRMs for the merchant's IEC.</li>
       <li><span class="actor a-agent">AutoFIRC</span> IRMs are matched under clubbing rules (same bank, account, currency; advances need invoice date ≥ remittance date).</li>
       <li><span class="actor a-dgft">DGFT</span> The RSA-SHA256-signed payload (invoice + SAC + Mode of Export + GST details) is submitted → eBRC number issued → <code>Fully Reconciled &amp; Compliant</code>. Failures retry with backoff.</li>
-      <li><span class="actor a-agent">AutoFIRC</span> If the Open API is unreachable, a KERNEL cloud-browser agent logs into the DGFT portal and self-certifies via the UI — with a 24fps live view and full replay for auditors.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> If the Open API is unreachable, a KERNEL cloud-browser agent logs into the DGFT portal, clubs the IRM, fills the self-certification form, uploads the invoice + LUT PDFs and scrapes the issued eBRC — with a live view and full replay stored on the ledger row for auditors.</li>
     </ol>
   </div>
 </section>

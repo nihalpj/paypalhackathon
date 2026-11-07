@@ -19,6 +19,30 @@ pub struct MockState {
     irms: Vec<IrmDto>,
     issued: Vec<EbrcRequest>,
     ebrc_seq: u64,
+    portal_ebrcs: Vec<crate::portal::PortalEbrc>,
+}
+
+impl MockState {
+    pub fn list_irms(&self) -> Vec<IrmDto> {
+        self.irms.clone()
+    }
+
+    pub fn next_ebrc_number(&mut self) -> String {
+        self.ebrc_seq += 1;
+        format!("EBRC-2026-{:04}", self.ebrc_seq)
+    }
+
+    pub fn consume_irms(&mut self, numbers: &[String]) {
+        self.irms.retain(|i| !numbers.contains(&i.irm_number));
+    }
+
+    pub fn push_portal_ebrc(&mut self, e: crate::portal::PortalEbrc) {
+        self.portal_ebrcs.push(e);
+    }
+
+    pub fn list_portal_ebrcs(&self) -> Vec<crate::portal::PortalEbrc> {
+        self.portal_ebrcs.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -46,6 +70,7 @@ impl MockDgft {
             .route("/seed-irm", post(seed_irm))
             .route("/ebrc", post(submit_ebrc))
             .route("/ebrcs", get(list_ebrcs))
+            .merge(crate::portal::router(self.state.clone()))
             .with_state(self.state.clone())
     }
 }
@@ -131,11 +156,11 @@ async fn submit_ebrc(
                 .into_response();
         }
     }
-    s.ebrc_seq += 1;
-    s.irms.retain(|i| !req.irm_numbers.contains(&i.irm_number));
+    let ebrc_number = s.next_ebrc_number();
+    s.consume_irms(&req.irm_numbers);
     s.issued.push(req);
     Json(EbrcResponse {
-        ebrc_number: format!("EBRC-2026-{:04}", s.ebrc_seq),
+        ebrc_number,
         status: "ISSUED".into(),
     })
     .into_response()

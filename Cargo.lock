@@ -321,6 +321,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "form_urlencoded",
  "pbkdf2",
  "rand 0.8.8",
  "reqwest 0.12.28",
@@ -378,6 +379,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "wiremock",
 ]
 
 [[package]]
@@ -392,6 +394,7 @@ dependencies = [
  "autofirc-dgft",
  "autofirc-paypal",
  "autofirc-pdf",
+ "autofirc-portal",
  "axum",
  "base64 0.22.1",
  "chrono",
@@ -483,6 +486,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
+ "multer",
  "percent-encoding",
  "pin-project-lite",
  "serde_core",
@@ -1995,6 +1999,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin",
+ "version_check",
+]
+
+[[package]]
 name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2622,6 +2643,7 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
+ "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "quinn",

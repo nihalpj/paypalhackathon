@@ -141,6 +141,16 @@ export default function DetailDrawer({
             <Field label="Capture ID" value={<span className="mono">{row.capture_id}</span>} />
             <Field label="Order ID" value={<span className="mono">{row.order_id}</span>} />
             <Field label="eBRC number" value={row.ebrc_number ? <span className="mono">{row.ebrc_number}</span> : null} />
+            <Field
+              label="Agent run"
+              value={
+                row.portal_live_view_url ? (
+                  <a href={row.portal_live_view_url} target="_blank" rel="noreferrer">
+                    Watch agent run (kernel.sh replay)
+                  </a>
+                ) : null
+              }
+            />
           </dl>
         </section>
 

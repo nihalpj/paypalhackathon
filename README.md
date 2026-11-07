@@ -49,14 +49,16 @@ Rust workspace (`crates/`):
 |---|---|
 | `autofirc-core` | Compliance rule engine: FEMA deadlines, IRM clubbing rules, purpose codes |
 | `autofirc-paypal` | Webhook signature verification (CRC32+RSA), OAuth2 Orders/Captures client, mock server |
-| `autofirc-ai` | Guardrail classifier over `rig` (Gemini/OpenAI/Anthropic/offline), NL ledger query parser |
+| `autofirc-ai` | Guardrail classifier (Nebius Token Factory/Gemini/OpenAI/Anthropic/offline), NL ledger query parser |
 | `autofirc-pdf` | GST Rule 46 export invoice + LUT document generation |
-| `autofirc-dgft` | DGFT Open API client (PBKDF2 handshake, RSA-signed eBRC) + high-fidelity mock |
+| `autofirc-dgft` | DGFT Open API client (PBKDF2 handshake, RSA-signed eBRC) + high-fidelity mock with a dgft.gov.in-style browser portal UI |
+| `autofirc-portal` | kernel.sh cloud-browser client: Playwright execution drives the portal UI (login → clubbing → PDF upload → eBRC scrape), live view + replay |
 | `autofirc-server` | axum API + apalis workers (ingest → classify → documents → reconcile) |
 | `autofirc-cli` | Agent-friendly CLI, JSON-first output |
 
-Infrastructure: Supabase Postgres (ledger), Upstash Redis (job queues via
-apalis), Supabase Storage (generated PDFs, presigned downloads).
+Infrastructure: Postgres (ledger; Render Postgres in the demo), Redis-compatible
+queue (apalis), S3-compatible object storage (generated PDFs, presigned
+downloads).
 
 Frontend: `web/` — React + TypeScript dashboard on **AG Grid** with a
 natural-language filter bar (LLM → structured filter), FEMA deadline
@@ -134,8 +136,10 @@ autofirc watch                      # stream pipeline changes
   `ZAPIER_MCP_URL` receives structured action payloads.
 - **APIMatic** — used during development to explore/validate the PayPal API
   surface via the PayPal MCP/context plugins.
-- **KERNEL** — `autofirc-portal` (stub) sketches the browser-agent fallback
-  for DGFT portals without API access.
+- **KERNEL** — `autofirc-portal` files eBRCs through a cloud browser driving
+  the mock DGFT portal UI (a dgft.gov.in twin): Playwright execution over
+  REST, invoice/LUT upload, and a live-view/replay URL stored on each ledger
+  row (`DGFT_PORTAL_MODE=browser|fallback|api`).
 
 ## Testing
 

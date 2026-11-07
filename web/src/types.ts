@@ -11,6 +11,7 @@ export interface LedgerRow {
   sac_code: string | null
   ai_confidence: number | null // 0-100
   ebrc_number: string | null
+  portal_live_view_url: string | null
   status: LedgerStatus
   invoice_number: string | null
   backstop_note: string | null
