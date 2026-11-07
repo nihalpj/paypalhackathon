@@ -95,6 +95,68 @@
         export as an advance for physical goods and EDPMS opens a "ghost" shipment obligation that can never
         be closed. GST Rule 96A adds 18% interest if LUT exports aren't realized in forex within a year.</p></div>
     </div>
+    <div class="note"><strong>The core injustice:</strong> a freelance developer in Indore who invoices $500 to a
+    client in Berlin has the <em>same</em> regulatory obligations as a ₹5,000-crore exporter — FEMA realization
+    tracking, EDPMS closure, DGFT self-certification, LUT accountability. Big exporters hire compliance teams.
+    Freelancers get a government portal, a 9-month clock, and penalties that start at 3× the payment. AutoFIRC
+    exists because the obligation scales down to one person, but the tooling never did.</div>
+  </div>
+</section>
+
+<section id="dgft">
+  <div class="wrap">
+    <h2>The DGFT portal: what must be done after every payment — and why</h2>
+    <div class="grid cols2">
+      <div class="card"><h3>What the DGFT eBRC system is</h3>
+        <p>The DGFT (Directorate General of Foreign Trade, Ministry of Commerce) runs India's eBRC platform —
+        the national registry where every foreign remittance an exporter receives must be reconciled against
+        the export it paid for. Your bank reports the money <em>in</em>; <strong>you</strong> must prove what it
+        was <em>for</em>. The eBRC (electronic Bank Realization Certificate) is that proof.</p></div>
+      <div class="card"><h3>Why it exists — the regulatory chain</h3>
+        <p>FEMA obliges every export earning to be realized, repatriated, and traced. RBI's EDPMS database
+        tracks each export invoice as an open obligation until a matching inward remittance closes it; the
+        eBRC is the certificate that performs that closure. Until it is issued, your LUT zero-rating under
+        GST Rule 96A is unproven, your bank keeps flagging the entry, and the FEMA clock keeps running.</p></div>
+    </div>
+
+    <h3 style="margin-top:32px">The manual gauntlet — today's DGFT website workflow</h3>
+    <ol class="flow">
+      <li><span class="actor a-bank">Bank</span> Your foreign client pays; the bank converts to INR, credits you, and — days later, with no notification — pushes an <strong>IRM (Inward Remittance Message)</strong> to the DGFT repository against your IEC.</li>
+      <li><span class="actor a-merchant">Merchant</span> Log into <code>dgft.gov.in</code> with IEC-linked credentials, open the eBRC module, and periodically hunt for new unmapped IRMs — there is no alert when one arrives.</li>
+      <li><span class="actor a-merchant">Merchant</span> Manually match each IRM (remitter name, foreign amount, currency, date) against your own invoices and PayPal receipts — a spreadsheet exercise repeated for every client payment.</li>
+      <li><span class="actor a-merchant">Merchant</span> "Club" IRMs to invoices under DGFT rules: only remittances sharing bank, account and currency may be clubbed, and advance payments require the invoice date to be on/after the remittance date. Club wrong and the filing is rejected.</li>
+      <li><span class="actor a-merchant">Merchant</span> Complete the self-certification form per invoice: GST invoice number, date and value (mandatory since 13 Jan 2026), SAC code, and the GATS <strong>Mode of Export of Services 1–4</strong> (mandatory since 1 May 2025) — fields most freelancers have never heard of, with no inline guidance.</li>
+      <li><span class="actor a-dgft">DGFT</span> On submission, DGFT issues the eBRC number. The exporter must then download the certificate and deliver it to their AD bank so the corresponding EDPMS entry can be closed.</li>
+      <li><span class="actor a-merchant">Merchant</span> Repeat for every payment, every month, forever. Miss one IRM and it silently ages into an open EDPMS obligation against your IEC.</li>
+    </ol>
+
+    <h3 style="margin-top:28px">Why every one of those steps is legally load-bearing</h3>
+    <table>
+      <tr><th>Portal step</th><th>Legal basis</th><th>What it proves</th></tr>
+      <tr><td>IRM ↔ invoice matching</td><td>FEMA realization &amp; repatriation duty; RBI EDPMS</td><td>The forex received maps to a genuine export — not an unreported remittance or TBML (trade-based money laundering) exposure</td></tr>
+      <tr><td>Clubbing rules</td><td>DGFT eBRC user guidelines</td><td>Many-to-one and one-to-many invoice/remittance relationships stay auditable and can't be used to disguise splitting</td></tr>
+      <tr><td>Mode of Export (GATS 1–4)</td><td>DGFT mandate, in force 1 May 2025</td><td>India's services-trade statistics and WTO GATS commitments — remote delivery from India is Mode 1 (Cross-Border Supply)</td></tr>
+      <tr><td>GST invoice fields</td><td>DGFT mandate, in force 13 Jan 2026; GST Rule 96A</td><td>The zero-rated LUT sale is backed by a real tax invoice — else output GST plus 18% interest becomes payable</td></tr>
+      <tr><td>Self-certification</td><td>Trade Notice 33/2023-24</td><td>Legal liability for the declaration sits with the exporter — wrong codes are a FEMA violation, not a typo</td></tr>
+      <tr><td>eBRC delivery to AD bank</td><td>RBI EDPMS closure workflow</td><td>Stops the FEMA realization clock and removes the open obligation from your IEC</td></tr>
+    </table>
+
+    <div class="grid cols2" style="margin-top:16px">
+      <div class="card"><h3>What happens if you don't</h3>
+        <ul class="tight">
+          <li>Open EDPMS entries age → RBI <strong>Caution List</strong> → banks stop processing your export collections entirely</li>
+          <li>LUT exports not realized in forex within the allowed period → GST payable <strong>plus 18% interest</strong> (Rule 96A)</li>
+          <li>FEMA 23(R)/2026-RB breach → penalties up to <strong>3× the sum involved + ₹5,000/day</strong> of continuing default</li>
+          <li>Wrong purpose/mode codes create permanent compliance debt (the P0103 "ghost shipment" trap)</li>
+        </ul></div>
+      <div class="card"><h3>What AutoFIRC does instead</h3>
+        <ul class="tight">
+          <li>Production-faithful <strong>DGFT Open API client</strong>: API key + PBKDF2-hashed client secret (65,536 iterations), every eBRC payload RSA-SHA256 signed — portal steps 2–6 become one automated pass per payment</li>
+          <li>Clubbing rules encoded deterministically in <code>autofirc-core</code> — auditable, never improvised by the LLM</li>
+          <li>Fallback <strong>KERNEL cloud-browser agent</strong> drives the real DGFT portal UI with a 24fps live view and full replay for auditors</li>
+          <li>This demo runs against a high-fidelity <strong>mock DGFT on Render</strong> — the real API requires an IEC, IP whitelisting and FIU registration that can't be obtained during a hackathon; the request/response contract is identical</li>
+        </ul></div>
+    </div>
   </div>
 </section>
 
@@ -135,7 +197,7 @@
       <li><span class="actor a-agent">AutoFIRC</span> The worker fetches OAuth2 token → <code>GET /v2/checkout/orders/{id}</code> + <code>GET /v2/payments/captures/{id}</code> for line items, buyer metadata, INR settlement, FX rate, fees.</li>
       <li><span class="actor a-agent">AutoFIRC</span> The guardrailed classifier returns <code>{purpose_code, mode_of_export, sac_code, confidence_score}</code>. P0103 forbidden for services; remote digital services → Mode 1 (Cross-Border Supply); P0807 flags a SOFTEX/Non-STP warning.</li>
       <li><span class="actor a-agent">AutoFIRC</span> Confidence &lt; 85 → <code>Manual Review</code>. Purpose codes are never hand-editable (TBML guardrail).</li>
-      <li><span class="actor a-agent">AutoFIRC</span> typst renders the GST Rule 46 commercial invoice (17 mandatory fields + LUT endorsement) and the LUT declaration → Supabase Storage with signed URLs → <code>Compliance Packet Ready</code>.</li>
+      <li><span class="actor a-agent">AutoFIRC</span> The PDF engine renders the GST Rule 46 commercial invoice (17 mandatory fields + LUT endorsement) and the LUT declaration → Supabase Storage with signed URLs → <code>Compliance Packet Ready</code>.</li>
       <li><span class="actor a-merchant">Merchant</span> Opens the AG Studio ledger: FEMA countdown widgets, eBRC status tiles, purpose-code charts. Amber at 7 months, red at 8.</li>
       <li><span class="actor a-merchant">Merchant</span> Types a natural-language command; the Studio Agent Framework isolates the rows; merchant clicks <strong>Authorize Bank Petition</strong> (bulk).</li>
       <li><span class="actor a-bank">Bank</span> Receives the encrypted packet (invoice + LUT + PayPal capture receipt as FIRA) via Zapier MCP email; verifies and closes the EDPMS entry; IRMs flow to DGFT.</li>
@@ -172,10 +234,10 @@
         <ul class="tight">
           <li><code>autofirc-core</code> — domain rules: purpose codes, FEMA engine, DGFT clubbing</li>
           <li><code>autofirc-paypal</code> — webhook crypto, OAuth2, Orders/Captures clients</li>
-          <li><code>autofirc-ai</code> — rig SDK classifier (Gemini default; any provider via env)</li>
+          <li><code>autofirc-ai</code> — guardrailed classifier: Nebius Token Factory (NVIDIA Nemotron) via direct chat completions; Gemini/OpenAI/Anthropic or deterministic offline mode via env</li>
           <li><code>autofirc-dgft</code> — PBKDF2/RSA-SHA256 eBRC client + mock server</li>
           <li><code>autofirc-portal</code> — KERNEL browser-agent for the DGFT portal</li>
-          <li><code>autofirc-pdf</code> — typst GST invoices &amp; LUT declarations</li>
+          <li><code>autofirc-pdf</code> — genpdf GST invoices &amp; LUT declarations</li>
           <li><code>autofirc-server</code> — Axum API + queue workers</li>
           <li><code>autofirc-cli</code> — agent skill for Claude Code / Kimi / OpenClaw</li>
         </ul></div>
@@ -184,9 +246,10 @@
           <li><strong>AG Studio</strong> — dashboard, widgets, Studio Agent Framework</li>
           <li><strong>APIMatic</strong> — Context Plugin for PayPal during development</li>
           <li><strong>KERNEL</strong> — cloud browsers for portal automation + replay</li>
-          <li><strong>Render</strong> — hosting for server, dashboard, mock DGFT</li>
+          <li><strong>Render</strong> — hosting for server, dashboard, mock DGFT (live demo)</li>
           <li><strong>Zapier MCP</strong> — bank-petition email + merchant alerts</li>
-          <li>Supabase Postgres + Storage · Upstash Redis queue · typst PDFs</li>
+          <li><strong>Nebius</strong> — Token Factory inference for the classification agent</li>
+          <li>Render Postgres · Upstash Redis queue · Supabase Storage · genpdf PDFs</li>
         </ul></div>
     </div>
   </div>
