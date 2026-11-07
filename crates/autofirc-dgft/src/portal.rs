@@ -4,7 +4,7 @@
 //! Shares `MockState` with the JSON API so both surfaces stay consistent.
 use axum::{
     Form, Router,
-    extract::{Multipart, Query, State},
+    extract::{Multipart, State},
     http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Redirect},
     routing::{get, post},
