@@ -57,6 +57,25 @@
 
 <script src="https://www.paypal.com/sdk/js?client-id={{CLIENT_ID}}&currency=USD&intent=capture"></script>
 <script>
+  // Prefill from dashboard deep links: /checkout?amount=..&currency=..&description=..
+  (function prefill() {
+    const q = new URLSearchParams(location.search);
+    const amount = q.get('amount');
+    if (amount && Number(amount) > 0) document.getElementById('amount').value = amount;
+    const currency = q.get('currency');
+    if (currency) {
+      const sel = document.getElementById('currency');
+      if (![...sel.options].some((o) => o.value === currency)) sel.add(new Option(currency, currency));
+      sel.value = currency;
+    }
+    const description = q.get('description');
+    if (description) {
+      const sel = document.getElementById('desc');
+      if (![...sel.options].some((o) => o.value === description)) sel.add(new Option(description, description));
+      sel.value = description;
+    }
+  })();
+
   const status = (cls, msg) => {
     const el = document.getElementById('status');
     el.className = cls; el.innerHTML = msg;

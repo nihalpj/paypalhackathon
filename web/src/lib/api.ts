@@ -36,6 +36,20 @@ export async function postPetition(eventIds: string[]): Promise<PetitionResponse
 }
 
 /**
+ * Hosted demo checkout page (create + capture in one PayPal SDK flow).
+ * Empty API base falls back to the local default server port.
+ */
+export function checkoutUrl(params: {
+  amount: string
+  currency: string
+  description: string
+}): string {
+  const base = API || 'http://localhost:8080'
+  const q = new URLSearchParams(params)
+  return `${base}/checkout?${q.toString()}`
+}
+
+/**
  * Natural-language ledger filter. Throws when no LLM key is configured (503);
  * callers fall back to client-side text search.
  */

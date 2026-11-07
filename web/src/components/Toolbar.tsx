@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { LedgerRow } from '../types'
 import { formatInr, rowAlert } from '../lib/format'
+import NewTransactionModal from './NewTransactionModal'
 
 export interface ToolbarProps {
   rows: LedgerRow[]
@@ -28,6 +29,7 @@ export default function Toolbar({
   onRefresh,
 }: ToolbarProps) {
   const [query, setQuery] = useState('')
+  const [showNewTxn, setShowNewTxn] = useState(false)
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -62,6 +64,13 @@ export default function Toolbar({
         </form>
         <div className="toolbar-actions">
           <button
+            className="btn btn-secondary"
+            onClick={() => setShowNewTxn(true)}
+            title="Start a new cross-border payment through the PayPal sandbox checkout"
+          >
+            + New transaction
+          </button>
+          <button
             className="btn btn-primary"
             disabled={selectedCount === 0 || petitioning}
             onClick={onPetition}
@@ -74,6 +83,8 @@ export default function Toolbar({
           </button>
         </div>
       </div>
+
+      {showNewTxn && <NewTransactionModal onClose={() => setShowNewTxn(false)} />}
 
       {(filterActive || filterChipsActive.length > 0) && (
         <div className="filter-line">

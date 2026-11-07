@@ -518,3 +518,67 @@
   border-radius: 999px;
   padding: 0 6px;
 }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 24px;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 26px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 16px 48px rgba(0, 48, 135, 0.18);
+}
+
+.modal-card h2 {
+  font-size: 18px;
+  color: #003087;
+  margin-bottom: 6px;
+}
+
+.modal-card .muted {
+  font-size: 13px;
+  color: #5b6478;
+  margin-bottom: 14px;
+}
+
+.modal-card label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+
+.modal-card input,
+.modal-card select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #d4dbe8;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.modal-row {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-row > div {
+  flex: 1;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
